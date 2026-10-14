@@ -8,37 +8,6 @@
 
 ---
 
-## 🌟 Ecosystem Architecture
-
-```mermaid
-graph TD
-    subgraph FryWorld Platform ["FryWorld Repository (/FryWorld)"]
-        SDK["FryWorld.Sdk (.NET 10)<br/>- Pure IFryPlugin / IFryPluginContext<br/>- PluginHost & DAG Topological Solver<br/>- Reversible Effects (PluginScope)<br/>- 5 Cordis Dispatch Pipelines<br/>- 10+ Dynamic Registries<br/>- Collectible ALC Loaders & Package Unpacker<br/>- Marketplace & Settings Abstractions"]
-        
-        APP["FryWorld Desktop Host (Avalonia 12 UI)<br/>- Creative Suite Launcher (4-Column Grid & Table Modes)<br/>- Dynamic Navigation Rail & Shell Window<br/>- M3 Expressive Tokens & Theme Engine<br/>- Plugins Manager Studio (Installed, Marketplace, Updates)<br/>- Floating Shell Overlay Container<br/>- Command Palette (⌘K / Ctrl+K) & Status Bar"]
-        
-        APP -->|References| SDK
-    end
-
-    subgraph Applications & Plugins ["FryWorld Ecosystem Consumers"]
-        FRYSHARP["FrySharp (C# Code Studio)<br/>- Workspace Studio Page<br/>- Fry Kernel Protocol"]
-        FRYIMAGE["FryImage (Image Editor)<br/>- Workspace Studio Page"]
-        FRYPDF["FryPdf (Document Studio)<br/>- PDF Tools & Canvas"]
-        MINIAPPS["Mini-Apps & Overlays<br/>- Snake, Chess, TicTacToe<br/>- Music Player, Telemetry, Scratchpad"]
-        
-        FRYSHARP -->|Depends on| SDK
-        FRYIMAGE -->|Depends on| SDK
-        FRYPDF -->|Depends on| SDK
-        MINIAPPS -->|Depends on| SDK
-        
-        FRYSHARP -.->|Loads dynamically into| APP
-        FRYIMAGE -.->|Loads dynamically into| APP
-        MINIAPPS -.->|Loads dynamically into| APP
-    end
-```
-
----
-
 ## 🚀 Key Highlights
 
 1. **Pure Universal SDK (`FryWorld.Sdk`)**:
