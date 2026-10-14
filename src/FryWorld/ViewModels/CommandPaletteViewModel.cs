@@ -70,6 +70,22 @@ public partial class CommandPaletteViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    public void Close()
+    {
+        RequestClose?.Invoke();
+    }
+
+    [RelayCommand]
+    public async Task ExecuteItemAsync(CommandPaletteItemViewModel? item)
+    {
+        if (item != null)
+        {
+            SelectedItem = item;
+        }
+        await ExecuteSelectedCommandAsync();
+    }
+
+    [RelayCommand]
     public async Task ExecuteSelectedCommandAsync()
     {
         if (SelectedItem?.Descriptor != null)

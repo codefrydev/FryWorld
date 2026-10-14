@@ -163,6 +163,7 @@ public partial class MainViewModel : ViewModelBase
 
         // Listen for dynamic capability registrations from plugins
         _host.Context.NavigationItemsChanged += OnDynamicNavigationItemsChanged;
+        _host.Context.OverlaysChanged += OnDynamicOverlaysChanged;
         _host.PluginStateChanged += (plugin, state) =>
         {
             UpdateMetrics();

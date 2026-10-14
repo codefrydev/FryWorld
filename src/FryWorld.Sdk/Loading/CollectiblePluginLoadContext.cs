@@ -19,9 +19,10 @@ public sealed class CollectiblePluginLoadContext : AssemblyLoadContext
     private static readonly HashSet<string> HostSharedFrameworkAssemblies =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            "Avalonia", "Avalonia.Base", "Avalonia.Controls", "Avalonia.Desktop",
-            "Avalonia.Markup", "Avalonia.Markup.Xaml", "Avalonia.Skia",
-            "CommunityToolkit.Mvvm", "Material.Icons", "Material.Icons.Avalonia",
+            "Avalonia", "Avalonia.Base", "Avalonia.Controls", "Avalonia.Controls.ColorPicker",
+            "Avalonia.Desktop", "Avalonia.Dialogs", "Avalonia.Fonts.Inter", "Avalonia.Markup",
+            "Avalonia.Markup.Xaml", "Avalonia.Skia", "Avalonia.Themes.Fluent", "Avalonia.AvaloniaEdit",
+            "SkiaSharp", "CommunityToolkit.Mvvm", "Material.Icons", "Material.Icons.Avalonia",
             "Microsoft.Extensions.DependencyInjection",
             "Microsoft.Extensions.DependencyInjection.Abstractions",
             "Microsoft.Extensions.Logging.Abstractions"
@@ -64,8 +65,9 @@ public sealed class CollectiblePluginLoadContext : AssemblyLoadContext
             }
         }
 
-        // Stage 3 — Shared host frameworks (Avalonia, MVVM toolkit)
-        if (assemblyName.Name != null && HostSharedFrameworkAssemblies.Contains(assemblyName.Name))
+        // Stage 3 — Shared host frameworks (Avalonia, MVVM toolkit, etc.)
+        if (assemblyName.Name != null && (HostSharedFrameworkAssemblies.Contains(assemblyName.Name) ||
+                                          assemblyName.Name.StartsWith("Avalonia.", StringComparison.OrdinalIgnoreCase)))
         {
             var shared = ResolveFromDefaultContext(assemblyName);
             if (shared != null) return shared;
@@ -76,17 +78,26 @@ public sealed class CollectiblePluginLoadContext : AssemblyLoadContext
 
     private static Assembly? ResolveFromDefaultContext(AssemblyName assemblyName)
     {
+        if (string.IsNullOrWhiteSpace(assemblyName.Name)) return null;
+
         var loaded = Default.Assemblies.FirstOrDefault(a =>
             string.Equals(a.GetName().Name, assemblyName.Name, StringComparison.OrdinalIgnoreCase));
         if (loaded != null) return loaded;
 
         try
         {
-            return Default.LoadFromAssemblyName(assemblyName);
+            return Default.LoadFromAssemblyName(new AssemblyName(assemblyName.Name));
         }
         catch
         {
-            return null;
+            try
+            {
+                return Default.LoadFromAssemblyName(assemblyName);
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 }

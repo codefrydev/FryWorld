@@ -2,7 +2,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:material="using:Material.Icons.Avalonia"
              x:Class="FryWorld.App"
+             Name="FryWorld"
              RequestedThemeVariant="Dark">
+
+  <NativeMenu.Menu>
+    <NativeMenu>
+      <NativeMenuItem Header="About FryWorld" />
+    </NativeMenu>
+  </NativeMenu.Menu>
+
 
   <Application.Resources>
     <ResourceDictionary>
@@ -14,6 +22,7 @@
 
   <Application.Styles>
     <FluentTheme />
+    <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
     <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
     <material:MaterialIconStyles />
     <StyleInclude Source="/Styles/Material3ExpressiveStyles.axaml" />

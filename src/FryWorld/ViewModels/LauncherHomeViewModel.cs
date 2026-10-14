@@ -163,17 +163,17 @@ public partial class LauncherHomeViewModel : ViewModelBase
         // Verified, real apps in FryWorld suite (matching catalog.json exactly, zero fake placeholders)
         var seedData = new[]
         {
-            ("01", "#2563EB", "com.fryworld.csharpstudio", "Fry", "Sharp", "Full-featured C# studio & polyglot notebooks", "Developer & Tools", "CodeBraces", "2.0.5", "https://github.com/codefrydev/FrySharp"),
-            ("02", "#DC2626", "com.fryworld.imageeditor", "Fry", "Image", "Vector illustration & bitmap canvas layout studio", "Creative & Design", "Palette", "3.1.0", "https://github.com/codefrydev/FryImage"),
-            ("03", "#D97706", "com.fryworld.snake", "Fry", "Snake", "60+ FPS classic arcade retro gaming overlay", "Games", "GamepadVariant", "1.0.0", "https://github.com/codefrydev/PDFCreator-resources"),
-            ("04", "#059669", "com.fryworld.chess", "Fry", "Chess", "2-Player & Minimax AI grandmaster chess overlay", "Games", "ChessKnight", "1.0.0", "https://github.com/codefrydev/PDFCreator-resources"),
-            ("05", "#DB2777", "com.fryworld.tictactoe", "Fry", "TicTacToe", "Minimax AI neon tactical duel overlay", "Games", "Grid", "1.0.0", "https://github.com/codefrydev/PDFCreator-resources"),
-            ("06", "#0891B2", "com.fryworld.telemetry", "Fry", "Telemetry", "Real-time GC memory & CPU resource HUD", "Utility", "Speedometer", "1.0.0", "https://github.com/codefrydev/PDFCreator-resources"),
-            ("07", "#EA580C", "com.fryworld.scratchpad", "Fry", "Notes", "Floating Markdown workspace scratchpad", "Productivity", "NotebookEdit", "1.0.0", "https://github.com/codefrydev/PDFCreator-resources")
+            ("01", "#2563EB", "com.fryworld.csharpstudio", "Fry", "Sharp", "Full-featured C# studio & polyglot notebooks", "Developer & Tools", "CodeBraces", "2.0.5", "15.0 MB", "https://github.com/codefrydev/FrySharp"),
+            ("02", "#DC2626", "com.fryworld.imageeditor", "Fry", "Image", "Vector illustration & bitmap canvas layout studio", "Creative & Design", "Palette", "3.1.0", "697 KB", "https://github.com/codefrydev/FryImage"),
+            ("03", "#D97706", "com.fryworld.snake", "Fry", "Snake", "60+ FPS classic arcade retro gaming overlay", "Games", "GamepadVariant", "1.0.0", "108 KB", "https://github.com/codefrydev/PDFCreator-resources"),
+            ("04", "#059669", "com.fryworld.chess", "Fry", "Chess", "2-Player & Minimax AI grandmaster chess overlay", "Games", "ChessKnight", "1.0.0", "108 KB", "https://github.com/codefrydev/PDFCreator-resources"),
+            ("05", "#DB2777", "com.fryworld.tictactoe", "Fry", "TicTacToe", "Minimax AI neon tactical duel overlay", "Games", "Grid", "1.0.0", "108 KB", "https://github.com/codefrydev/PDFCreator-resources"),
+            ("06", "#0891B2", "com.fryworld.telemetry", "Fry", "Telemetry", "Real-time GC memory & CPU resource HUD", "Utility", "Speedometer", "1.0.0", "96 KB", "https://github.com/codefrydev/PDFCreator-resources"),
+            ("07", "#EA580C", "com.fryworld.scratchpad", "Fry", "Notes", "Floating Markdown workspace scratchpad", "Productivity", "NotebookEdit", "1.0.0", "92 KB", "https://github.com/codefrydev/PDFCreator-resources")
         };
 
         _allApps.Clear();
-        foreach (var (index, color, id, prefix, suffix, desc, cat, icon, ver, repo) in seedData)
+        foreach (var (index, color, id, prefix, suffix, desc, cat, icon, ver, size, repo) in seedData)
         {
             var card = new LauncherAppCardViewModel
             {
@@ -187,7 +187,7 @@ public partial class LauncherHomeViewModel : ViewModelBase
                 Category = cat,
                 IconKind = icon,
                 Version = $"Version {ver} · Oct 15, 2026",
-                FormattedSize = string.Empty,
+                FormattedSize = size,
                 RepositoryUrl = repo,
                 IconBitmap = TryLoadPluginIcon(id),
                 OnPrimaryActionAsync = HandleCardActionAsync,
@@ -198,7 +198,7 @@ public partial class LauncherHomeViewModel : ViewModelBase
             card.AvailableVersions.Add(new MarketplacePluginVersion
             {
                 Version = ver,
-                FormattedSize = string.Empty
+                FormattedSize = size
             });
             card.SelectedVersion = card.AvailableVersions[0];
 
@@ -221,13 +221,38 @@ public partial class LauncherHomeViewModel : ViewModelBase
         int index = 1;
         var palette = new[] { "#2563EB", "#DC2626", "#D97706", "#059669", "#DB2777", "#0891B2", "#EA580C" };
 
+        var seedBranding = new Dictionary<string, (string prefix, string suffix)>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["com.fryworld.csharpstudio"] = ("Fry", "Sharp"),
+            ["com.fryworld.imageeditor"] = ("Fry", "Image"),
+            ["com.fryworld.snake"] = ("Fry", "Snake"),
+            ["com.fryworld.chess"] = ("Fry", "Chess"),
+            ["com.fryworld.tictactoe"] = ("Fry", "TicTacToe"),
+            ["com.fryworld.telemetry"] = ("Fry", "Telemetry"),
+            ["com.fryworld.scratchpad"] = ("Fry", "Notes")
+        };
+
         _allApps.Clear();
         foreach (var item in fryWorldItems)
         {
             var color = item.IconColorHex ?? palette[(index - 1) % palette.Length];
-            var parts = item.Name.Split(' ', 2);
-            var prefix = parts[0];
-            var suffix = parts.Length > 1 ? parts[1] : string.Empty;
+            string prefix, suffix;
+            if (seedBranding.TryGetValue(item.Id, out var brand))
+            {
+                prefix = brand.prefix;
+                suffix = brand.suffix;
+            }
+            else if (item.Name.StartsWith("Fry", StringComparison.OrdinalIgnoreCase) && item.Name.Length > 3)
+            {
+                prefix = "Fry";
+                suffix = item.Name[3..].TrimStart();
+            }
+            else
+            {
+                var parts = item.Name.Split(' ', 2);
+                prefix = parts[0];
+                suffix = parts.Length > 1 ? " " + parts[1] : string.Empty;
+            }
 
             var card = new LauncherAppCardViewModel
             {
@@ -290,26 +315,35 @@ public partial class LauncherHomeViewModel : ViewModelBase
             card.Status = LauncherAppStatus.Installed;
             card.StatusText = "INSTALLED";
             card.PrimaryActionText = "LAUNCH";
-
-            // Real installed directory size on disk
-            var installDir = Path.Combine(FryWorldPaths.PluginsDirectory, card.Id);
-            var dirBytes = GetDirectorySize(installDir);
-            if (dirBytes > 0)
-            {
-                card.FormattedSize = FormatBytes(dirBytes);
-            }
         }
         else
         {
             card.Status = LauncherAppStatus.NotInstalled;
             card.StatusText = "AVAILABLE";
             card.PrimaryActionText = "INSTALL";
+        }
 
-            // Real package archive size from local file if present
+        // Keep official declared download/package size from version or catalog
+        var versionSize = card.SelectedVersion?.FormattedSize;
+        if (!string.IsNullOrWhiteSpace(versionSize))
+        {
+            card.FormattedSize = versionSize;
+        }
+        else if (string.IsNullOrWhiteSpace(card.FormattedSize))
+        {
             var pkgBytes = GetPackageFileSize(card.Id);
             if (pkgBytes > 0)
             {
                 card.FormattedSize = FormatBytes(pkgBytes);
+            }
+            else if (isInstalled)
+            {
+                var installDir = Path.Combine(FryWorldPaths.PluginsDirectory, card.Id);
+                var dirBytes = GetDirectorySize(installDir);
+                if (dirBytes > 0)
+                {
+                    card.FormattedSize = FormatBytes(dirBytes);
+                }
             }
         }
     }

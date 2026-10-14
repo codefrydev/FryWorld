@@ -21,6 +21,7 @@ public partial class App : Application
 
     public override void Initialize()
     {
+        Name = "FryWorld";
         AvaloniaXamlLoader.Load(this);
 
         Avalonia.Threading.Dispatcher.UIThread.UnhandledException += (s, e) =>

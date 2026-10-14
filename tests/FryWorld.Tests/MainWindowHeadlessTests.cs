@@ -129,4 +129,35 @@ public class MainWindowHeadlessTests
             TestHeadlessSession.Settle(2);
         });
     }
+
+    [Fact]
+    public void NavigateToPlugin_ImageEditor_LoadsAndDisplaysView()
+    {
+        TestHeadlessSession.Run(() =>
+        {
+            var mainVm = App.Services.GetRequiredService<MainViewModel>();
+            var host = App.Services.GetRequiredService<PluginHost>();
+
+            // Wait for background mounting to finish
+            for (int i = 0; i < 50; i++)
+            {
+                if (host.GetRegisteredPlugins().All(p => host.GetPluginState(p.Id) == PluginLifecycleState.Active))
+                    break;
+                TestHeadlessSession.Settle(4);
+            }
+
+            mainVm.NavigateToPlugin("com.fryworld.imageeditor");
+            TestHeadlessSession.Settle(10);
+
+            Assert.NotNull(mainVm.CurrentView);
+            Assert.Equal("PdfEditorApp.Plugins.ImageEditor.Views.ImageEditorView", mainVm.CurrentView.GetType().FullName);
+            Assert.Equal("dyn.com.fryworld.imageeditor", mainVm.SelectedNavItem?.Id);
+
+            // Cleanup: reset navigation back to launcher
+            var launcherItem = mainVm.NavigationItems.First(n => n.Id == "nav.launcher");
+            mainVm.SelectNavigationItem(launcherItem);
+            TestHeadlessSession.Settle(4);
+        });
+    }
 }
+
