@@ -1,0 +1,30 @@
+## [Build Artifacts]
+[Bb]in/
+[Oo]bj/
+[Aa]rtifacts/
+dist/
+publish/
+
+## [Visual Studio / Rider / IDE]
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.DS_Store
+
+## [Packages]
+*.nupkg
+*.snupkg
+
+## [Crash Logs & Diagnostics]
+*.log
+crash.dump
+crash.dmp
+crash-reports/
+
+## [Local User Configuration & Plugins]
+plugins/
+*.fryplugin
+user_settings.json

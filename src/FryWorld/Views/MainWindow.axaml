@@ -1,0 +1,129 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:FryWorld.ViewModels"
+        xmlns:views="using:FryWorld.Views"
+        xmlns:material="using:Material.Icons.Avalonia"
+        x:Class="FryWorld.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="FryWorld - Creative &amp; Developer Suite"
+        Width="1280" Height="820"
+        MinWidth="960" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource M3SurfaceBrush}">
+
+  <Window.KeyBindings>
+    <KeyBinding Gesture="Cmd+K" Command="{Binding OpenCommandPaletteCommand}" />
+    <KeyBinding Gesture="Ctrl+K" Command="{Binding OpenCommandPaletteCommand}" />
+  </Window.KeyBindings>
+
+  <Grid ColumnDefinitions="Auto,*" RowDefinitions="*,Auto">
+
+    <!-- ========================================== -->
+    <!-- 1. LEFT NAVIGATION RAIL                    -->
+    <!-- ========================================== -->
+    <Border Grid.Row="0" Grid.Column="0"
+            Width="72"
+            Background="{DynamicResource M3SurfaceContainerLowestBrush}"
+            BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+            BorderThickness="0,0,1,0">
+
+      <Grid RowDefinitions="Auto,*,Auto" Margin="0,16">
+
+        <!-- Top FryWorld Logo Pill -->
+        <Border Grid.Row="0" Width="44" Height="44" CornerRadius="12" Background="{DynamicResource M3PrimaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,24">
+          <material:MaterialIcon Kind="RocketLaunch" Width="24" Height="24" Foreground="{DynamicResource M3OnPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+
+        <!-- Navigation Rail Items -->
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding NavigationItems}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="vm:NavigationRailItem">
+              <Button Classes="icon-btn"
+                      Width="52" Height="52"
+                      Margin="0,0,0,10"
+                      HorizontalAlignment="Center"
+                      ToolTip.Tip="{Binding Title}"
+                      Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).SelectNavigationItem}"
+                      CommandParameter="{Binding}">
+                <material:MaterialIcon Kind="{Binding IconKind}" Width="24" Height="24"
+                                      Foreground="{Binding IsSelected, Converter={x:Static ObjectConverters.IsNotNull}}" />
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Bottom Actions (⌘K Command Palette, Theme Toggle) -->
+        <StackPanel Grid.Row="2" HorizontalAlignment="Center" Spacing="12">
+          <!-- ⌘K Palette -->
+          <Button Classes="icon-btn" Width="44" Height="44" Command="{Binding OpenCommandPaletteCommand}" ToolTip.Tip="Command Palette (⌘K / Ctrl+K)">
+            <material:MaterialIcon Kind="Flash" Width="20" Height="20" Foreground="{DynamicResource M3PrimaryBrush}" />
+          </Button>
+
+          <!-- Theme Toggle -->
+          <Button Classes="icon-btn" Width="44" Height="44" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="Toggle Light / Dark Theme">
+            <material:MaterialIcon Kind="ThemeLightDark" Width="20" Height="20" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+          </Button>
+        </StackPanel>
+
+      </Grid>
+    </Border>
+
+    <!-- ========================================== -->
+    <!-- 2. MAIN VIEWPORT & OVERLAY LAYER           -->
+    <!-- ========================================== -->
+    <Grid Grid.Row="0" Grid.Column="1">
+
+      <!-- View Switcher -->
+      <Panel>
+        <!-- A. Launcher Home View -->
+        <Panel IsVisible="{Binding IsLauncherActive}">
+          <views:LauncherHomeView DataContext="{Binding LauncherHomeVm}" />
+        </Panel>
+
+        <!-- B. Plugins Manager View -->
+        <Panel IsVisible="{Binding IsPluginsActive}">
+          <views:PluginsManagerPageView DataContext="{Binding PluginsManagerVm}" />
+        </Panel>
+
+        <!-- C. Dynamic Workspace Studio Plugin View (e.g. C# Studio, Image Editor) -->
+        <ContentControl Content="{Binding CurrentView}"
+                        IsVisible="{Binding CurrentView, Converter={x:Static ObjectConverters.IsNotNull}}" />
+      </Panel>
+
+      <!-- Floating Shell Overlays Layer -->
+      <views:ShellOverlayHost DataContext="{Binding}" />
+
+      <!-- Command Palette Dialog (⌘K) Modal Overlay -->
+      <Panel IsVisible="{Binding IsCommandPaletteOpen}">
+        <views:CommandPaletteDialog DataContext="{Binding CommandPaletteVm}" />
+      </Panel>
+    </Grid>
+
+    <!-- ========================================== -->
+    <!-- 3. BOTTOM STATUS BAR                       -->
+    <!-- ========================================== -->
+    <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+            Height="26"
+            Background="{DynamicResource M3SurfaceContainerLowestBrush}"
+            BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+            BorderThickness="0,1,0,0"
+            Padding="16,0">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center" Margin="0,0,16,0">
+          <TextBlock Text="{Binding LoadedPluginCount, StringFormat='Active Plugins: {0}'}" FontSize="11" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding MemoryUsageText, StringFormat='Heap: {0}'}" FontSize="11" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <material:MaterialIcon Kind="Circle" Width="8" Height="8" Foreground="{DynamicResource M3PrimaryBrush}" VerticalAlignment="Center" />
+          <TextBlock Text="Online" FontSize="11" Foreground="{DynamicResource M3PrimaryBrush}" VerticalAlignment="Center" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+  </Grid>
+</Window>

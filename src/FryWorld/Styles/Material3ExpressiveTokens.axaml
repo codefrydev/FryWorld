@@ -1,0 +1,78 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ========================================== -->
+  <!-- 1. MATERIAL 3 EXPRESSIVE SHAPE SCALE       -->
+  <!-- ========================================== -->
+  <CornerRadius x:Key="M3ShapeCornerFull">9999</CornerRadius>
+  <CornerRadius x:Key="M3ShapeCornerExtraLarge">28</CornerRadius>
+  <CornerRadius x:Key="M3ShapeCornerLarge">16</CornerRadius>
+  <CornerRadius x:Key="M3ShapeCornerMedium">12</CornerRadius>
+  <CornerRadius x:Key="M3ShapeCornerSmall">8</CornerRadius>
+
+  <!-- ========================================== -->
+  <!-- 2. DARK THEME COLOR PALETTE (DEFAULT)      -->
+  <!-- ========================================== -->
+  <Color x:Key="M3SurfaceColor">#0D1117</Color>
+  <Color x:Key="M3SurfaceContainerLowestColor">#080C11</Color>
+  <Color x:Key="M3SurfaceContainerLowColor">#121721</Color>
+  <Color x:Key="M3SurfaceContainerColor">#161D2A</Color>
+  <Color x:Key="M3SurfaceContainerHighColor">#1C2536</Color>
+  <Color x:Key="M3SurfaceContainerHighestColor">#253046</Color>
+
+  <Color x:Key="M3PrimaryColor">#38BDF8</Color>
+  <Color x:Key="M3PrimaryContainerColor">#0369A1</Color>
+  <Color x:Key="M3OnPrimaryColor">#082F49</Color>
+  <Color x:Key="M3OnPrimaryContainerColor">#E0F2FE</Color>
+
+  <Color x:Key="M3SecondaryColor">#A855F7</Color>
+  <Color x:Key="M3SecondaryContainerColor">#581C87</Color>
+  <Color x:Key="M3OnSecondaryColor">#3B0764</Color>
+
+  <Color x:Key="M3OutlineColor">#2D3748</Color>
+  <Color x:Key="M3OutlineVariantColor">#1E293B</Color>
+
+  <Color x:Key="M3OnSurfaceColor">#F8FAFC</Color>
+  <Color x:Key="M3OnSurfaceVariantColor">#94A3B8</Color>
+  <Color x:Key="M3ErrorColor">#EF4444</Color>
+
+  <!-- Dynamic Brushes -->
+  <SolidColorBrush x:Key="M3SurfaceBrush" Color="{StaticResource M3SurfaceColor}" />
+  <SolidColorBrush x:Key="M3SurfaceContainerLowestBrush" Color="{StaticResource M3SurfaceContainerLowestColor}" />
+  <SolidColorBrush x:Key="M3SurfaceContainerLowBrush" Color="{StaticResource M3SurfaceContainerLowColor}" />
+  <SolidColorBrush x:Key="M3SurfaceContainerBrush" Color="{StaticResource M3SurfaceContainerColor}" />
+  <SolidColorBrush x:Key="M3SurfaceContainerHighBrush" Color="{StaticResource M3SurfaceContainerHighColor}" />
+  <SolidColorBrush x:Key="M3SurfaceContainerHighestBrush" Color="{StaticResource M3SurfaceContainerHighestColor}" />
+
+  <SolidColorBrush x:Key="M3PrimaryBrush" Color="{StaticResource M3PrimaryColor}" />
+  <SolidColorBrush x:Key="M3PrimaryContainerBrush" Color="{StaticResource M3PrimaryContainerColor}" />
+  <SolidColorBrush x:Key="M3OnPrimaryBrush" Color="{StaticResource M3OnPrimaryColor}" />
+  <SolidColorBrush x:Key="M3OnPrimaryContainerBrush" Color="{StaticResource M3OnPrimaryContainerColor}" />
+
+  <SolidColorBrush x:Key="M3SecondaryBrush" Color="{StaticResource M3SecondaryColor}" />
+  <SolidColorBrush x:Key="M3SecondaryContainerBrush" Color="{StaticResource M3SecondaryContainerColor}" />
+
+  <SolidColorBrush x:Key="M3OutlineBrush" Color="{StaticResource M3OutlineColor}" />
+  <SolidColorBrush x:Key="M3OutlineVariantBrush" Color="{StaticResource M3OutlineVariantColor}" />
+
+  <SolidColorBrush x:Key="M3OnSurfaceBrush" Color="{StaticResource M3OnSurfaceColor}" />
+  <SolidColorBrush x:Key="M3OnSurfaceVariantBrush" Color="{StaticResource M3OnSurfaceVariantColor}" />
+  <SolidColorBrush x:Key="M3ErrorBrush" Color="{StaticResource M3ErrorColor}" />
+
+  <!-- ========================================== -->
+  <!-- 3. LAUNCHER INDEXED PALETTE                -->
+  <!-- ========================================== -->
+  <SolidColorBrush x:Key="CardPillBlue" Color="#2563EB" />
+  <SolidColorBrush x:Key="CardPillRed" Color="#DC2626" />
+  <SolidColorBrush x:Key="CardPillPurple" Color="#9333EA" />
+  <SolidColorBrush x:Key="CardPillAmber" Color="#D97706" />
+  <SolidColorBrush x:Key="CardPillGreen" Color="#059669" />
+  <SolidColorBrush x:Key="CardPillPink" Color="#DB2777" />
+  <SolidColorBrush x:Key="CardPillLime" Color="#65A30D" />
+  <SolidColorBrush x:Key="CardPillCyan" Color="#0891B2" />
+  <SolidColorBrush x:Key="CardPillOrange" Color="#EA580C" />
+  <SolidColorBrush x:Key="CardPillEmerald" Color="#10B981" />
+  <SolidColorBrush x:Key="CardPillTeal" Color="#0D9488" />
+  <SolidColorBrush x:Key="CardPillIndigo" Color="#4F46E5" />
+
+</ResourceDictionary>

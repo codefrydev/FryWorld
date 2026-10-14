@@ -1,0 +1,61 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FryWorld.ViewModels"
+             xmlns:material="using:Material.Icons.Avalonia"
+             x:Class="FryWorld.Views.PluginsManagerPageView"
+             x:DataType="vm:PluginsManagerViewModel">
+
+  <Grid RowDefinitions="Auto,*" Background="{DynamicResource M3SurfaceBrush}">
+
+    <!-- Top Header -->
+    <Border Grid.Row="0"
+            Background="{DynamicResource M3SurfaceContainerLowestBrush}"
+            BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="24,14">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <material:MaterialIcon Kind="ToyBrickOutline" Width="24" Height="24" Foreground="{DynamicResource M3PrimaryBrush}" />
+          <TextBlock Text="PLUGINS &amp; EXTENSIONS STUDIO" FontSize="16" FontWeight="Black" LetterSpacing="0.8" Foreground="{DynamicResource M3OnSurfaceBrush}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <!-- Search & Refresh -->
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12">
+          <Button Command="{Binding RefreshMarketplaceCommand}" Classes="icon-btn" ToolTip.Tip="Refresh Marketplace">
+            <material:MaterialIcon Kind="Refresh" Width="18" Height="18" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Content List -->
+    <ScrollViewer Grid.Row="1" Padding="24">
+      <StackPanel Spacing="16">
+        <TextBlock Text="Installed Plugins" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+
+        <ItemsControl ItemsSource="{Binding InstalledPlugins}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="vm:PluginItemViewModel">
+              <Border Classes="launcher-card" Margin="0,0,0,8">
+                <Grid ColumnDefinitions="*,Auto,Auto">
+                  <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                    <TextBlock Text="{Binding Id}" FontSize="11" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                  </StackPanel>
+
+                  <TextBlock Grid.Column="1" Text="{Binding Version}" FontSize="12" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="0,0,16,0" />
+
+                  <ToggleSwitch Grid.Column="2"
+                                IsChecked="{Binding IsEnabled}"
+                                Command="{Binding $parent[UserControl].((vm:PluginsManagerViewModel)DataContext).TogglePluginCommand}"
+                                CommandParameter="{Binding}" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </ScrollViewer>
+
+  </Grid>
+</UserControl>

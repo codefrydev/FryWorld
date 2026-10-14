@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FryWorld.Sdk/FryWorld.Sdk.csproj" />
+    <Project Path="src/FryWorld/FryWorld.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FryWorld.Sdk.Tests/FryWorld.Sdk.Tests.csproj" />
+  </Folder>
+</Solution>

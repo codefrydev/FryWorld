@@ -1,0 +1,258 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FryWorld.ViewModels"
+             xmlns:material="using:Material.Icons.Avalonia"
+             x:Class="FryWorld.Views.LauncherHomeView"
+             x:DataType="vm:LauncherHomeViewModel">
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto" Background="{DynamicResource M3SurfaceBrush}">
+
+    <!-- ======================================================== -->
+    <!-- ZONE 1: TOP HEADER (Branding, View Toggle, External Links)-->
+    <!-- ======================================================== -->
+    <Border Grid.Row="0"
+            Background="{DynamicResource M3SurfaceContainerLowestBrush}"
+            BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="24,14">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+
+        <!-- Logo & Suite Title -->
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <material:MaterialIcon Kind="RocketLaunch" Width="24" Height="24" Foreground="{DynamicResource M3PrimaryBrush}" />
+          <TextBlock Text="FRYWORLD" FontSize="18" FontWeight="Black" LetterSpacing="1" VerticalAlignment="Center" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+
+          <!-- LAUNCHER Pill Badge -->
+          <Border CornerRadius="{DynamicResource M3ShapeCornerFull}" Background="{DynamicResource M3SurfaceContainerHighestBrush}" Padding="8,3" VerticalAlignment="Center">
+            <TextBlock Text="LAUNCHER" FontSize="10" FontWeight="Bold" LetterSpacing="0.8" Foreground="{DynamicResource M3PrimaryBrush}" />
+          </Border>
+
+          <TextBlock Text="APP SUITE" FontSize="11" FontWeight="SemiBold" LetterSpacing="0.8" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="4,0,0,0" />
+        </StackPanel>
+
+        <!-- Right Side: Grid / Table Toggle & Links -->
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+
+          <!-- View Mode Toggle Capsule (GRID / TABLE) -->
+          <Border CornerRadius="8" Background="{DynamicResource M3SurfaceContainerLowBrush}" BorderBrush="{DynamicResource M3OutlineVariantBrush}" BorderThickness="1" Padding="3">
+            <StackPanel Orientation="Horizontal" Spacing="2">
+              <Button Command="{Binding SetViewModeCommand}" CommandParameter="Grid"
+                      CornerRadius="6" Padding="12,4" BorderThickness="0" Cursor="Hand"
+                      Background="{DynamicResource M3SurfaceContainerHighestBrush}"
+                      Foreground="{DynamicResource M3OnSurfaceBrush}">
+                <TextBlock Text="GRID" FontSize="10" FontWeight="Bold" LetterSpacing="0.5" />
+              </Button>
+              <Button Command="{Binding SetViewModeCommand}" CommandParameter="Table"
+                      CornerRadius="6" Padding="12,4" BorderThickness="0" Cursor="Hand"
+                      Background="Transparent"
+                      Foreground="{DynamicResource M3OnSurfaceVariantBrush}">
+                <TextBlock Text="TABLE" FontSize="10" FontWeight="Bold" LetterSpacing="0.5" />
+              </Button>
+            </StackPanel>
+          </Border>
+
+          <!-- Community Links -->
+          <Button Classes="icon-btn" ToolTip.Tip="Discord Community">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <TextBlock Text="DISCORD" FontSize="11" FontWeight="Bold" LetterSpacing="0.5" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              <material:MaterialIcon Kind="ArrowTopRight" Width="14" Height="14" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+            </StackPanel>
+          </Button>
+
+          <!-- Refresh Button -->
+          <Button Command="{Binding RefreshCatalogCommand}" Classes="icon-btn" ToolTip.Tip="Reload Catalog Feed">
+            <material:MaterialIcon Kind="Refresh" Width="18" Height="18" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- ======================================================== -->
+    <!-- ZONE 2: FILTER & SEARCH TOOLBAR                           -->
+    <!-- ======================================================== -->
+    <Border Grid.Row="1"
+            Background="{DynamicResource M3SurfaceContainerLowestBrush}"
+            BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="24,12">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+
+        <!-- Status Filter Segmented Capsule -->
+        <Border Grid.Column="0" Classes="segmented-filter-bar">
+          <StackPanel Orientation="Horizontal" Spacing="4">
+
+            <!-- ALL -->
+            <Button Command="{Binding SetFilterCommand}" CommandParameter="All"
+                    CornerRadius="6" Padding="10,4" BorderThickness="0" Cursor="Hand"
+                    Background="{DynamicResource M3SurfaceContainerHighestBrush}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="ALL" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                <TextBlock Text="{Binding AllCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3PrimaryBrush}" />
+              </StackPanel>
+            </Button>
+
+            <!-- INSTALLED -->
+            <Button Command="{Binding SetFilterCommand}" CommandParameter="Installed"
+                    CornerRadius="6" Padding="10,4" BorderThickness="0" Cursor="Hand" Background="Transparent">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="INSTALLED" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                <TextBlock Text="{Binding InstalledCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              </StackPanel>
+            </Button>
+
+            <!-- UPDATES -->
+            <Button Command="{Binding SetFilterCommand}" CommandParameter="Updates"
+                    CornerRadius="6" Padding="10,4" BorderThickness="0" Cursor="Hand" Background="Transparent">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="UPDATES" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                <TextBlock Text="{Binding UpdatesCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              </StackPanel>
+            </Button>
+
+            <!-- NOT INSTALLED -->
+            <Button Command="{Binding SetFilterCommand}" CommandParameter="NotInstalled"
+                    CornerRadius="6" Padding="10,4" BorderThickness="0" Cursor="Hand" Background="Transparent">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="NOT INSTALLED" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                <TextBlock Text="{Binding NotInstalledCount}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Border>
+
+        <!-- Sort Dropdown -->
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,16,0">
+          <TextBlock Text="SORT" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" VerticalAlignment="Center" />
+          <ComboBox ItemsSource="{Binding SortOptions}"
+                    SelectedItem="{Binding SelectedSort}"
+                    CornerRadius="8"
+                    Background="{DynamicResource M3SurfaceContainerLowBrush}"
+                    BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+                    Foreground="{DynamicResource M3OnSurfaceBrush}"
+                    Height="32" MinWidth="130" FontSize="12" />
+        </StackPanel>
+
+        <!-- Search Input -->
+        <TextBox Grid.Column="3"
+                 Classes="m3-search"
+                 Text="{Binding SearchQuery, Mode=TwoWay}"
+                 PlaceholderText="Search apps..."
+                 Width="220"
+                 Height="34" />
+      </Grid>
+    </Border>
+
+    <!-- ======================================================== -->
+    <!-- ZONE 3: 4-COLUMN SUITE APP CARDS GRID                    -->
+    <!-- ======================================================== -->
+    <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Padding="24">
+      <ItemsControl ItemsSource="{Binding FilteredApps}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <UniformGrid Columns="4" />
+          </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="vm:LauncherAppCardViewModel">
+            <Border Classes="launcher-card" Margin="6">
+              <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+
+                <!-- 1. Top Row: Numbered Tag & External Links -->
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                  <!-- Tag Pill (01, 02...) -->
+                  <Border Grid.Column="0" Classes="launcher-index-tag" Background="{Binding IndexColorHex}">
+                    <TextBlock Text="{Binding IndexTag}" FontSize="10" FontWeight="Black" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                  </Border>
+
+                  <!-- Right Links (WEBSITE ↗, GITHUB ↗) -->
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                    <Button Command="{Binding OpenWebsiteCommand}" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand">
+                      <StackPanel Orientation="Horizontal" Spacing="2">
+                        <TextBlock Text="WEBSITE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                        <material:MaterialIcon Kind="ArrowTopRight" Width="10" Height="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                      </StackPanel>
+                    </Button>
+                    <Button Command="{Binding OpenRepositoryCommand}" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand">
+                      <StackPanel Orientation="Horizontal" Spacing="2">
+                        <TextBlock Text="GITHUB" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                        <material:MaterialIcon Kind="ArrowTopRight" Width="10" Height="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                      </StackPanel>
+                    </Button>
+                  </StackPanel>
+                </Grid>
+
+                <!-- 2. Middle Row: App Logo Squircle & Dual-Tone Title -->
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,16,0,8">
+                  <!-- Squircle Icon Box -->
+                  <Border Grid.Column="0" Width="44" Height="44" CornerRadius="12" Background="{DynamicResource M3SurfaceContainerHighestBrush}" Margin="0,0,12,0">
+                    <material:MaterialIcon Kind="{Binding IconKind}" Width="24" Height="24" Foreground="{DynamicResource M3PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+
+                  <!-- Title & Tagline -->
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <StackPanel Orientation="Horizontal" Spacing="1">
+                      <TextBlock Text="{Binding TitlePrefix}" FontSize="15" FontWeight="Black" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                      <TextBlock Text="{Binding TitleSuffix}" FontSize="15" FontWeight="Black" Foreground="{DynamicResource M3PrimaryBrush}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding Description}" FontSize="11" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                  </StackPanel>
+                </Grid>
+
+                <!-- 3. Status Pill Tag -->
+                <Border Grid.Row="2" HorizontalAlignment="Left" CornerRadius="4" Background="{DynamicResource M3SurfaceContainerHighestBrush}" Padding="6,2" Margin="0,6,0,8">
+                  <TextBlock Text="{Binding StatusText}" FontSize="9" FontWeight="Bold" LetterSpacing="0.5" Foreground="{DynamicResource M3PrimaryBrush}" />
+                </Border>
+
+                <!-- 4. Version and Date -->
+                <TextBlock Grid.Row="3" Text="{Binding Version}" FontSize="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" Margin="0,0,0,14" />
+
+                <!-- 5. Primary Action (INSTALL / LAUNCH) & Menu -->
+                <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                  <Button Grid.Column="0"
+                          Classes="m3-card-action"
+                          Command="{Binding ExecutePrimaryActionCommand}"
+                          Content="{Binding PrimaryActionText}"
+                          Margin="0,0,6,0" />
+
+                  <!-- Options Menu (...) -->
+                  <Button Grid.Column="1"
+                          Command="{Binding ExecuteOptionsCommand}"
+                          CornerRadius="8"
+                          Width="36" Height="36"
+                          Background="{DynamicResource M3SurfaceContainerHighestBrush}"
+                          BorderThickness="0"
+                          Cursor="Hand">
+                    <material:MaterialIcon Kind="DotsHorizontal" Width="18" Height="18" Foreground="{DynamicResource M3OnSurfaceBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Button>
+                </Grid>
+
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <!-- ======================================================== -->
+    <!-- ZONE 4: FOOTER BAR (Catalog Status & Platform Info)      -->
+    <!-- ======================================================== -->
+    <Border Grid.Row="3"
+            Background="{DynamicResource M3SurfaceContainerLowestBrush}"
+            BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+            BorderThickness="0,1,0,0"
+            Padding="24,10">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock Grid.Column="0" Text="{Binding StatusFooterText}" FontSize="10" FontWeight="Bold" LetterSpacing="0.8" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" VerticalAlignment="Center" />
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+          <TextBlock Text="WEBSITE ↗" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+          <TextBlock Text="GITHUB ↗" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+          <TextBlock Text="DISCORD ↗" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+          <TextBlock Text="INSTALLING FOR MACOS / WINDOWS / LINUX" FontSize="10" FontWeight="Black" LetterSpacing="0.8" Foreground="{DynamicResource M3PrimaryBrush}" Margin="8,0,0,0" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+  </Grid>
+</UserControl>

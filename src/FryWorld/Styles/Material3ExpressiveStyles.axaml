@@ -1,0 +1,128 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ========================================== -->
+  <!-- 1. BUTTON STYLES                           -->
+  <!-- ========================================== -->
+
+  <!-- Filled Action Pill Button -->
+  <Style Selector="Button.m3-filled-btn">
+    <Setter Property="CornerRadius" Value="{DynamicResource M3ShapeCornerFull}" />
+    <Setter Property="Background" Value="{DynamicResource M3PrimaryBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource M3OnPrimaryBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Padding" Value="18,10" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.m3-filled-btn:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#7DD3FC" />
+    <Setter Property="RenderTransform" Value="scale(1.02)" />
+  </Style>
+
+  <!-- Tonal Action Pill Button -->
+  <Style Selector="Button.m3-tonal-btn">
+    <Setter Property="CornerRadius" Value="{DynamicResource M3ShapeCornerFull}" />
+    <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerHighBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceBrush}" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Padding" Value="16,8" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+  <Style Selector="Button.m3-tonal-btn:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerHighestBrush}" />
+  </Style>
+
+  <!-- High-Contrast Card Action Button (Install / Launch) -->
+  <Style Selector="Button.m3-card-action">
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Background" Value="#F8FAFC" />
+    <Setter Property="Foreground" Value="#0F172A" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="LetterSpacing" Value="0.5" />
+    <Setter Property="Height" Value="36" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="Button.m3-card-action:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#E2E8F0" />
+  </Style>
+
+  <!-- Icon Tool Button -->
+  <Style Selector="Button.icon-btn">
+    <Setter Property="CornerRadius" Value="{DynamicResource M3ShapeCornerFull}" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceVariantBrush}" />
+    <Setter Property="Padding" Value="8" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="Button.icon-btn:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerHighestBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceBrush}" />
+  </Style>
+
+  <!-- ========================================== -->
+  <!-- 2. SEARCH AND INPUT STYLES                 -->
+  <!-- ========================================== -->
+
+  <Style Selector="TextBox.m3-search">
+    <Setter Property="CornerRadius" Value="{DynamicResource M3ShapeCornerFull}" />
+    <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerLowBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource M3OutlineVariantBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceBrush}" />
+    <Setter Property="Padding" Value="16,8" />
+    <Setter Property="FontSize" Value="13" />
+  </Style>
+  <Style Selector="TextBox.m3-search:focus /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource M3PrimaryBrush}" />
+    <Setter Property="BorderThickness" Value="1.5" />
+  </Style>
+
+  <!-- ========================================== -->
+  <!-- 3. LAUNCHER SUITE CARD STYLES              -->
+  <!-- ========================================== -->
+
+  <Style Selector="Border.launcher-card">
+    <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerLowBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource M3OutlineVariantBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="{DynamicResource M3ShapeCornerLarge}" />
+    <Setter Property="Padding" Value="16" />
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector="Border.launcher-card:pointerover">
+    <Setter Property="BorderBrush" Value="{DynamicResource M3OutlineBrush}" />
+    <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerBrush}" />
+  </Style>
+
+  <!-- Launcher Numbered Tag -->
+  <Style Selector="Border.launcher-index-tag">
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="6,2" />
+    <Setter Property="Height" Value="20" />
+    <Setter Property="MinWidth" Value="24" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- Segmented Status Pill Filter -->
+  <Style Selector="Border.segmented-filter-bar">
+    <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerLowBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource M3OutlineVariantBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="4" />
+  </Style>
+
+</Styles>
