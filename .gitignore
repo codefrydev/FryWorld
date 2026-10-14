@@ -25,6 +25,7 @@ crash.dmp
 crash-reports/
 
 ## [Local User Configuration & Plugins]
-plugins/
+/plugins/
+/src/FryWorld/plugins/
 *.fryplugin
 user_settings.json

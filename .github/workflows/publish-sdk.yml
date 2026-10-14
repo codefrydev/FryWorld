@@ -3,7 +3,6 @@ name: Publish FryWorld.Sdk to NuGet
 on:
   push:
     tags:
-      - 'sdk-v*'
       - 'v*'
   workflow_dispatch:
     inputs:
