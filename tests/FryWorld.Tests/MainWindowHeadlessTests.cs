@@ -159,5 +159,49 @@ public class MainWindowHeadlessTests
             TestHeadlessSession.Settle(4);
         });
     }
+
+    [Fact]
+    public void NavigationRail_ToggleNavRail_TogglesVisibilityAndUpdatesNativeMenu()
+    {
+        TestHeadlessSession.Run(() =>
+        {
+            var mainVm = App.Services.GetRequiredService<MainViewModel>();
+            var window = new MainWindow
+            {
+                DataContext = mainVm
+            };
+            window.Show();
+            TestHeadlessSession.Settle(4);
+
+            try
+            {
+                Assert.True(mainVm.IsNavRailVisible);
+
+                // Toggle rail off
+                mainVm.ToggleNavRailCommand.Execute(null);
+                TestHeadlessSession.Settle(2);
+                Assert.False(mainVm.IsNavRailVisible);
+
+                // Toggle rail back on
+                mainVm.ToggleNavRailCommand.Execute(null);
+                TestHeadlessSession.Settle(2);
+                Assert.True(mainVm.IsNavRailVisible);
+
+                // Verify native menu was populated
+                var nativeMenu = NativeMenu.GetMenu(window);
+                Assert.NotNull(nativeMenu);
+                var workspaces = nativeMenu.Items.OfType<NativeMenuItem>().FirstOrDefault(m => m.Header == "Workspaces");
+                Assert.NotNull(workspaces);
+                Assert.NotNull(workspaces.Menu);
+                Assert.True(workspaces.Menu.Items.Count >= 3, "Workspaces menu should contain launcher, plugins, and toggle rail items.");
+            }
+            finally
+            {
+                window.Close();
+                TestHeadlessSession.Settle(2);
+            }
+        });
+    }
 }
+
 

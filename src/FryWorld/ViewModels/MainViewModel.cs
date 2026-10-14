@@ -122,6 +122,9 @@ public partial class MainViewModel : ViewModelBase
     private bool _isCommandPaletteOpen;
 
     [ObservableProperty]
+    private bool _isNavRailVisible = true;
+
+    [ObservableProperty]
     private bool _isLauncherActive = true;
 
     [ObservableProperty]
@@ -135,6 +138,8 @@ public partial class MainViewModel : ViewModelBase
 
     [ObservableProperty]
     private string _statusText = "Ready";
+
+    public event Action? NavigationItemsUpdated;
 
     public LauncherHomeViewModel LauncherHomeVm { get; }
     public PluginsManagerViewModel PluginsManagerVm { get; }
@@ -181,7 +186,55 @@ public partial class MainViewModel : ViewModelBase
             }
         };
 
+        RegisterBuiltInCommands();
         UpdateMetrics();
+    }
+
+    private void RegisterBuiltInCommands()
+    {
+        _host.Context.RegisterCommand(new CommandPaletteDescriptor
+        {
+            Id = "core.toggleNavRail",
+            Title = "Toggle Left Navigation Rail",
+            Subtitle = "Show or hide the left navigation rail",
+            Category = "View",
+            IconKind = "DockLeft",
+            ShortcutKey = "⌘B",
+            Command = ToggleNavRailCommand
+        });
+
+        _host.Context.RegisterCommand(new CommandPaletteDescriptor
+        {
+            Id = "core.openLauncher",
+            Title = "Open Suite Launcher",
+            Subtitle = "Switch to FryWorld Launcher Home",
+            Category = "Navigation",
+            IconKind = "ViewGridOutline",
+            ShortcutKey = "⌘1",
+            Command = OpenLauncherCommand
+        });
+
+        _host.Context.RegisterCommand(new CommandPaletteDescriptor
+        {
+            Id = "core.openPlugins",
+            Title = "Open Plugins & Extensions",
+            Subtitle = "Browse and manage installed plugins",
+            Category = "Navigation",
+            IconKind = "ToyBrickOutline",
+            ShortcutKey = "⌘2",
+            Command = OpenPluginsManagerCommand
+        });
+
+        _host.Context.RegisterCommand(new CommandPaletteDescriptor
+        {
+            Id = "core.toggleTheme",
+            Title = "Toggle Theme",
+            Subtitle = "Switch between Dark and Light theme",
+            Category = "View",
+            IconKind = "ThemeLightDark",
+            ShortcutKey = "⌘T",
+            Command = ToggleThemeCommand
+        });
     }
 
     private void InitializeNavigation()
@@ -227,6 +280,8 @@ public partial class MainViewModel : ViewModelBase
                     ViewFactory = nav.ViewFactory
                 });
             }
+
+            NavigationItemsUpdated?.Invoke();
         }
 
         if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
@@ -418,6 +473,26 @@ public partial class MainViewModel : ViewModelBase
     public void ToggleTheme()
     {
         _themeService.ToggleTheme();
+    }
+
+    [RelayCommand]
+    public void ToggleNavRail()
+    {
+        IsNavRailVisible = !IsNavRailVisible;
+    }
+
+    [RelayCommand]
+    public void OpenLauncher()
+    {
+        var item = NavigationItems.FirstOrDefault(n => n.Id == "nav.launcher") ?? (NavigationItems.Count > 0 ? NavigationItems[0] : null);
+        if (item != null) SelectNavigationItem(item);
+    }
+
+    [RelayCommand]
+    public void OpenPluginsManager()
+    {
+        var item = NavigationItems.FirstOrDefault(n => n.Id == "nav.plugins") ?? (NavigationItems.Count > 1 ? NavigationItems[1] : null);
+        if (item != null) SelectNavigationItem(item);
     }
 
     public void SelectNavigationItem(NavigationRailItem item)
