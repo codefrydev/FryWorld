@@ -49,6 +49,7 @@ public static class Program
                 "palette" => RunPaletteSnapshot(isLight),
                 "overlay" => RunOverlaySnapshot(isLight),
                 "launch" => RunLaunchFrySharpSnapshot(isLight),
+                "icons" => GenerateBrandIcons(),
                 "plugin" => args.Length > 1 ? RunPluginSnapshot(args[1], isLight) : Error("Missing plugin path argument."),
                 _ => Error($"Unknown command '{cmd}'. Run 'help' for usage.")
             };
@@ -282,6 +283,14 @@ public static class Program
             window.Close();
             Snapshot.Settle(2);
         }
+    }
+
+    private static int GenerateBrandIcons()
+    {
+        var targetDir = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "FryWorld", "Assets", "plugins");
+        targetDir = Path.GetFullPath(targetDir);
+        IconGenerator.GenerateAllBrandIcons(targetDir);
+        return 0;
     }
 
     private static int Error(string message)

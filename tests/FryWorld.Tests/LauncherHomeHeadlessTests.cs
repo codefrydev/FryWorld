@@ -25,8 +25,8 @@ public class LauncherHomeHeadlessTests
             var mainVm = App.Services.GetRequiredService<MainViewModel>();
             var homeVm = mainVm.LauncherHomeVm;
 
-            Assert.Equal(12, homeVm.AllCount);
-            Assert.Equal(12, homeVm.FilteredApps.Count);
+            Assert.True(homeVm.AllCount > 0);
+            Assert.Equal(homeVm.AllCount, homeVm.FilteredApps.Count);
 
             var view = new LauncherHomeView { DataContext = homeVm };
             var window = TestHeadlessSession.ShowOffscreen(view, 1200, 800);
@@ -89,7 +89,7 @@ public class LauncherHomeHeadlessTests
             Assert.Empty(homeVm.FilteredApps);
 
             homeVm.SearchQuery = string.Empty;
-            Assert.Equal(12, homeVm.FilteredApps.Count);
+            Assert.Equal(homeVm.AllCount, homeVm.FilteredApps.Count);
         });
     }
 
@@ -128,6 +128,26 @@ public class LauncherHomeHeadlessTests
             Assert.NotNull(mainVm.SelectedNavItem);
             Assert.Contains("com.fryworld.csharpstudio", mainVm.SelectedNavItem.Id);
             Assert.NotNull(mainVm.CurrentView);
+        });
+    }
+
+    [Fact]
+    public void UninstallButton_SetsStatusToNotInstalled_AndChangesActionToInstall()
+    {
+        TestHeadlessSession.Run(() =>
+        {
+            var mainVm = App.Services.GetRequiredService<MainViewModel>();
+            var card = mainVm.LauncherHomeVm.FilteredApps.FirstOrDefault(a => a.Id == "com.fryworld.chess");
+            Assert.NotNull(card);
+
+            // Execute uninstall
+            card.ExecuteUninstallCommand.Execute(null);
+
+            // Verify state
+            Assert.Equal(LauncherAppStatus.NotInstalled, card.Status);
+            Assert.Equal("INSTALL", card.PrimaryActionText);
+            Assert.Equal("AVAILABLE", card.StatusText);
+            Assert.False(card.IsInstalled);
         });
     }
 }

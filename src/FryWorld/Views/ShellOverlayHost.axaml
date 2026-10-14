@@ -3,59 +3,152 @@
              xmlns:vm="using:FryWorld.ViewModels"
              xmlns:material="using:Material.Icons.Avalonia"
              x:Class="FryWorld.Views.ShellOverlayHost"
-             x:DataType="vm:MainViewModel">
+             x:Name="RootOverlayHost"
+             x:DataType="vm:MainViewModel"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Stretch">
 
-  <!-- Floating Overlays Layer -->
-  <ItemsControl ItemsSource="{Binding ActiveOverlays}">
+  <ItemsControl ItemsSource="{Binding ActiveOverlays}"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
     <ItemsControl.ItemsPanel>
       <ItemsPanelTemplate>
-        <Canvas />
+        <Canvas Width="{Binding $parent[UserControl].Bounds.Width}"
+                Height="{Binding $parent[UserControl].Bounds.Height}" />
       </ItemsPanelTemplate>
     </ItemsControl.ItemsPanel>
 
+    <ItemsControl.ItemContainerTheme>
+      <ControlTheme TargetType="ContentPresenter" x:DataType="vm:ActiveOverlayViewModel">
+        <Setter Property="Canvas.Left" Value="{Binding X}" />
+        <Setter Property="Canvas.Top" Value="{Binding Y}" />
+        <Setter Property="Canvas.ZIndex" Value="{Binding ZIndex}" />
+        <Setter Property="IsVisible" Value="{Binding IsVisible}" />
+      </ControlTheme>
+    </ItemsControl.ItemContainerTheme>
+
     <ItemsControl.ItemTemplate>
-      <DataTemplate DataType="vm:ActiveOverlayViewModel">
-        <Border Background="{DynamicResource M3SurfaceContainerLowBrush}"
-                BorderBrush="{DynamicResource M3OutlineBrush}"
-                BorderThickness="1"
-                CornerRadius="12"
-                Width="{Binding Width}"
-                Height="{Binding Height}"
-                BoxShadow="0 12 24 #80000000"
-                Canvas.Left="60"
-                Canvas.Top="60">
+      <DataTemplate DataType="vm:ActiveOverlayViewModel" x:DataType="vm:ActiveOverlayViewModel">
+        <Panel PointerPressed="OnOverlayPointerPressed">
+          <!-- 1. CUSTOM CHROME (Snake game has its own outer border & titlebar) -->
+          <ContentControl Content="{Binding View}"
+                          IsVisible="{Binding HasCustomChrome}" />
 
-          <Grid RowDefinitions="Auto,*">
+          <!-- 2. STANDARD M3 CARD CHROME (Chess, TicTacToe, Telemetry, Scratchpad) -->
+          <Border IsVisible="{Binding HasStandardChrome}"
+                  Background="{DynamicResource M3SurfaceContainerHighBrush}"
+                  BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+                  BorderThickness="1"
+                  CornerRadius="14"
+                  BoxShadow="0 14 36 #80000000"
+                  ClipToBounds="True"
+                  Width="{Binding Width, Mode=TwoWay}"
+                  Height="{Binding EffectiveHeight}"
+                  MinWidth="{Binding Descriptor.MinWidth}"
+                  MinHeight="{Binding EffectiveMinHeight}">
+            <Panel>
+              <Grid RowDefinitions="Auto,*">
+                <!-- Draggable Header -->
+                <Border Grid.Row="0"
+                        Background="{DynamicResource M3SurfaceContainerHighestBrush}"
+                        BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+                        BorderThickness="0,0,0,1"
+                        Height="42"
+                        Padding="12,0"
+                        PointerPressed="OnStandardHeaderPointerPressed"
+                        PointerMoved="OnStandardHeaderPointerMoved"
+                        PointerReleased="OnStandardHeaderPointerReleased"
+                        Cursor="SizeAll">
+                  <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" VerticalAlignment="Center">
+                    <!-- Icon and Title -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                      <material:MaterialIcon Kind="{Binding IconKind}"
+                                             Width="16" Height="16"
+                                             Foreground="{DynamicResource M3PrimaryBrush}"
+                                             VerticalAlignment="Center" />
+                      <TextBlock Text="{Binding Title}"
+                                 FontWeight="SemiBold"
+                                 FontSize="13"
+                                 Foreground="{DynamicResource M3OnSurfaceBrush}"
+                                 VerticalAlignment="Center" />
+                    </StackPanel>
 
-            <!-- Title Bar -->
-            <Border Grid.Row="0"
-                    Background="{DynamicResource M3SurfaceContainerLowestBrush}"
-                    BorderBrush="{DynamicResource M3OutlineVariantBrush}"
-                    BorderThickness="0,0,0,1"
-                    CornerRadius="12,12,0,0"
-                    Padding="12,8">
-              <Grid ColumnDefinitions="Auto,*,Auto">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                  <material:MaterialIcon Kind="{Binding IconKind}" Width="16" Height="16" Foreground="{DynamicResource M3PrimaryBrush}" />
-                  <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" VerticalAlignment="Center" />
-                </StackPanel>
+                    <!-- Pin Toggle Button -->
+                    <ToggleButton Grid.Column="2"
+                                  IsChecked="{Binding IsPinned}"
+                                  Classes="icon-btn"
+                                  Width="26" Height="26"
+                                  Padding="0"
+                                  Margin="2,0"
+                                  Background="Transparent"
+                                  BorderThickness="0"
+                                  Cursor="Hand"
+                                  ToolTip.Tip="Pin Overlay (Keep Visible)">
+                      <material:MaterialIcon Kind="PinOutline"
+                                             Width="13" Height="13"
+                                             Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                    </ToggleButton>
 
-                <!-- Close Button -->
-                <Button Grid.Column="2"
-                        Classes="icon-btn"
-                        Padding="4"
-                        Command="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).CloseOverlayCommand}"
-                        CommandParameter="{Binding}">
-                  <material:MaterialIcon Kind="Close" Width="14" Height="14" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
-                </Button>
+                    <!-- Minimize Button -->
+                    <Button Grid.Column="3"
+                            Classes="icon-btn"
+                            Command="{Binding ToggleMinimizeCommand}"
+                            Width="26" Height="26"
+                            Padding="0"
+                            Margin="2,0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            ToolTip.Tip="Minimize / Expand">
+                      <material:MaterialIcon Kind="WindowMinimize"
+                                             Width="13" Height="13"
+                                             Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                    </Button>
+
+                    <!-- Close Button -->
+                    <Button Grid.Column="4"
+                            Classes="icon-btn"
+                            Command="{Binding CloseCommand}"
+                            Width="26" Height="26"
+                            Padding="0"
+                            Margin="4,0,0,0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            ToolTip.Tip="Close Overlay">
+                      <material:MaterialIcon Kind="Close"
+                                             Width="14" Height="14"
+                                             Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                    </Button>
+                  </Grid>
+                </Border>
+
+                <!-- Plugin View Content (Hidden when minimized) -->
+                <ContentControl Grid.Row="1"
+                                Content="{Binding View}"
+                                IsVisible="{Binding !IsMinimized}" />
               </Grid>
-            </Border>
 
-            <!-- Plugin View Content -->
-            <ContentControl Grid.Row="1" Content="{Binding View}" />
-
-          </Grid>
-        </Border>
+              <!-- Corner Resize Grip (Bottom-Right) -->
+              <Border Width="16" Height="16"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Bottom"
+                      Background="Transparent"
+                      Cursor="BottomRightCorner"
+                      IsVisible="{Binding CanResize}"
+                      PointerPressed="OnResizeBottomRightPointerPressed"
+                      PointerMoved="OnResizePointerMoved"
+                      PointerReleased="OnResizePointerReleased">
+                <material:MaterialIcon Kind="ResizeBottomRight"
+                                       Width="12" Height="12"
+                                       Foreground="{DynamicResource M3OutlineBrush}"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Bottom"
+                                       Margin="0,0,2,2" />
+              </Border>
+            </Panel>
+          </Border>
+        </Panel>
       </DataTemplate>
     </ItemsControl.ItemTemplate>
   </ItemsControl>

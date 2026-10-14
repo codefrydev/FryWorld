@@ -40,7 +40,7 @@ public sealed class MarketplacePluginItem
     public int InstallCount { get; set; }
 
     [JsonPropertyName("formattedSize")]
-    public string FormattedSize { get; set; } = "1.0 MB";
+    public string FormattedSize { get; set; } = string.Empty;
 
     [JsonPropertyName("iconKind")]
     public string? IconKind { get; set; }
@@ -74,4 +74,37 @@ public sealed class MarketplacePluginItem
 
     [JsonPropertyName("contributedFeatures")]
     public List<string> ContributedFeatures { get; set; } = new();
+
+    [JsonPropertyName("versions")]
+    public List<MarketplacePluginVersion> Versions { get; set; } = new();
+}
+
+/// <summary>
+/// Model representing a specific version release of a plugin package.
+/// </summary>
+public sealed class MarketplacePluginVersion
+{
+    [JsonPropertyName("version")]
+    public string Version { get; set; } = "1.0.0";
+
+    [JsonPropertyName("releaseDate")]
+    public string? ReleaseDate { get; set; }
+
+    [JsonPropertyName("downloadUrl")]
+    public string DownloadUrl { get; set; } = string.Empty;
+
+    [JsonPropertyName("sha256")]
+    public string? Sha256 { get; set; }
+
+    [JsonPropertyName("formattedSize")]
+    public string FormattedSize { get; set; } = string.Empty;
+
+    [JsonPropertyName("minHostVersion")]
+    public string? MinHostVersion { get; set; }
+
+    [JsonPropertyName("targetFramework")]
+    public string? TargetFramework { get; set; }
+
+    [JsonPropertyName("releaseNotes")]
+    public string? ReleaseNotes { get; set; }
 }

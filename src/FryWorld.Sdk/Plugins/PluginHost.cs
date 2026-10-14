@@ -51,10 +51,35 @@ public sealed class PluginHost : IAsyncDisposable, IDisposable
         var entry = new PluginRegistrationEntry { Plugin = plugin, State = PluginLifecycleState.Registered };
         if (!_plugins.TryAdd(plugin.Id, entry))
         {
-            throw new InvalidOperationException($"A plugin with identifier '{plugin.Id}' has already been registered.");
+            if (_plugins.TryGetValue(plugin.Id, out var existing) && (existing.State == PluginLifecycleState.Unloaded || existing.State == PluginLifecycleState.Failed))
+            {
+                _plugins[plugin.Id] = entry;
+            }
+            else
+            {
+                throw new InvalidOperationException($"A plugin with identifier '{plugin.Id}' has already been registered.");
+            }
         }
 
         PluginStateChanged?.Invoke(plugin, PluginLifecycleState.Registered);
+    }
+
+    /// <summary>
+    /// Unregisters and removes a plugin from the host registry.
+    /// </summary>
+    public bool UnregisterPlugin(string pluginId)
+    {
+        if (_plugins.TryRemove(pluginId, out var entry))
+        {
+            if (entry.State == PluginLifecycleState.Active)
+            {
+                try { entry.Scope.Dispose(); } catch { }
+            }
+            entry.State = PluginLifecycleState.Unloaded;
+            PluginStateChanged?.Invoke(entry.Plugin, PluginLifecycleState.Unloaded);
+            return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -151,6 +176,8 @@ public sealed class PluginHost : IAsyncDisposable, IDisposable
             entry.FailureError = ex;
             PluginStateChanged?.Invoke(entry.Plugin, entry.State);
         }
+
+        _plugins.TryRemove(pluginId, out _);
 
         return Task.CompletedTask;
     }

@@ -3,6 +3,13 @@ using Avalonia.Controls;
 
 namespace FryWorld.Sdk.Descriptors;
 
+public enum OverlayChromeMode
+{
+    StandardCard,
+    CustomChrome,
+    FloatingPill
+}
+
 /// <summary>
 /// Descriptor representing a floating, draggable, or docked shell overlay.
 /// Ideal for games (Snake, Chess, TicTacToe) and persistent utility widgets (Music Player, Telemetry HUD, Scratchpad).
@@ -18,6 +25,8 @@ public sealed class OverlayDescriptor
     public double MinHeight { get; init; } = 200;
     public bool IsResizable { get; init; } = true;
     public bool AutoOpenOnMount { get; init; } = false;
+    public OverlayChromeMode ChromeMode { get; init; } = OverlayChromeMode.StandardCard;
+    public bool HasCustomChrome => ChromeMode == OverlayChromeMode.CustomChrome;
 
     /// <summary>
     /// Factory delegate producing the overlay view control.

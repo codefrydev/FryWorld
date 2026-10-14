@@ -130,6 +130,7 @@ public sealed class PluginMarketplaceService : IPluginMarketplaceService, IDispo
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginId);
 
         await _host.UnmountPluginAsync(pluginId);
+        _host.UnregisterPlugin(pluginId);
 
         var targetFolder = Path.Combine(_pluginsDirectory, pluginId);
         if (Directory.Exists(targetFolder))
@@ -138,14 +139,27 @@ public sealed class PluginMarketplaceService : IPluginMarketplaceService, IDispo
             {
                 Directory.Delete(targetFolder, recursive: true);
             }
-            catch { }
+            catch
+            {
+                try
+                {
+                    System.Threading.Thread.Sleep(50);
+                    Directory.Delete(targetFolder, recursive: true);
+                }
+                catch { }
+            }
         }
     }
 
     public bool IsPluginInstalled(string pluginId)
     {
         var targetFolder = Path.Combine(_pluginsDirectory, pluginId);
-        return Directory.Exists(targetFolder) || _host.GetRegisteredPlugins().Any(p => string.Equals(p.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+        if (Directory.Exists(targetFolder))
+        {
+            return true;
+        }
+
+        return _host.GetPluginState(pluginId) == PluginLifecycleState.Active;
     }
 
     public bool HasUpdateAvailable(string pluginId, string installedVersion)

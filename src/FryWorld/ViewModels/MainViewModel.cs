@@ -27,24 +27,81 @@ public partial class NavigationRailItem : ViewModelBase
 
 public partial class ActiveOverlayViewModel : ViewModelBase
 {
+    private readonly Action<ActiveOverlayViewModel>? _onClose;
+
     public OverlayDescriptor Descriptor { get; }
     public Control View { get; }
 
+    public string Id => Descriptor.Id;
     public string Title => Descriptor.Title;
     public string? IconKind => Descriptor.IconKind ?? "WindowMaximize";
+
+    [ObservableProperty]
+    private double _x = 60;
+
+    [ObservableProperty]
+    private double _y = 60;
 
     [ObservableProperty]
     private double _width;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveHeight))]
     private double _height;
 
-    public ActiveOverlayViewModel(OverlayDescriptor descriptor)
+    [ObservableProperty]
+    private int _zIndex = 1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(EffectiveHeight))]
+    [NotifyPropertyChangedFor(nameof(EffectiveMinHeight))]
+    [NotifyPropertyChangedFor(nameof(CanResize))]
+    private bool _isMinimized;
+
+    [ObservableProperty]
+    private bool _isPinned;
+
+    [ObservableProperty]
+    private bool _isVisible = true;
+
+    public bool IsResizable => Descriptor.IsResizable;
+    public bool CanResize => IsResizable && !IsMinimized;
+    public double EffectiveHeight => IsMinimized ? 42 : Height;
+    public double EffectiveMinHeight => IsMinimized ? 42 : Descriptor.MinHeight;
+
+    public bool HasCustomChrome => Descriptor.HasCustomChrome || Descriptor.Id == "com.fryworld.snake";
+    public bool HasStandardChrome => !HasCustomChrome;
+
+    public ActiveOverlayViewModel(OverlayDescriptor descriptor, Action<ActiveOverlayViewModel>? onClose = null)
     {
         Descriptor = descriptor;
         View = descriptor.ViewFactory();
         Width = descriptor.DefaultWidth;
         Height = descriptor.DefaultHeight;
+        _onClose = onClose;
+    }
+
+    public void BringToFront(IEnumerable<ActiveOverlayViewModel> allOverlays)
+    {
+        int maxZ = 0;
+        foreach (var ov in allOverlays)
+        {
+            if (ov.ZIndex > maxZ)
+                maxZ = ov.ZIndex;
+        }
+        ZIndex = maxZ + 1;
+    }
+
+    [RelayCommand]
+    public void ToggleMinimize()
+    {
+        IsMinimized = !IsMinimized;
+    }
+
+    [RelayCommand]
+    public void Close()
+    {
+        _onClose?.Invoke(this);
     }
 }
 
@@ -106,8 +163,22 @@ public partial class MainViewModel : ViewModelBase
 
         // Listen for dynamic capability registrations from plugins
         _host.Context.NavigationItemsChanged += OnDynamicNavigationItemsChanged;
-        _host.Context.OverlaysChanged += OnDynamicOverlaysChanged;
-        _host.PluginStateChanged += (_, _) => UpdateMetrics();
+        _host.PluginStateChanged += (plugin, state) =>
+        {
+            UpdateMetrics();
+            if (state == PluginLifecycleState.Unloaded || state == PluginLifecycleState.Failed)
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    OnDynamicNavigationItemsChanged();
+                    var toClose = ActiveOverlays.Where(o => string.Equals(o.Descriptor.Id, plugin.Id, StringComparison.OrdinalIgnoreCase)).ToList();
+                    foreach (var ov in toClose)
+                    {
+                        ActiveOverlays.Remove(ov);
+                    }
+                });
+            }
+        };
 
         UpdateMetrics();
     }
@@ -176,7 +247,14 @@ public partial class MainViewModel : ViewModelBase
             {
                 if (overlay.AutoOpenOnMount && !ActiveOverlays.Any(o => o.Descriptor.Id == overlay.Id))
                 {
-                    ActiveOverlays.Add(new ActiveOverlayViewModel(overlay));
+                    int offsetIndex = ActiveOverlays.Count % 6;
+                    var vm = new ActiveOverlayViewModel(overlay, CloseOverlay)
+                    {
+                        X = 80 + (offsetIndex * 36),
+                        Y = 60 + (offsetIndex * 32),
+                        ZIndex = ActiveOverlays.Count + 1
+                    };
+                    ActiveOverlays.Add(vm);
                 }
             }
         }
@@ -303,10 +381,23 @@ public partial class MainViewModel : ViewModelBase
 
     public void OpenOverlay(OverlayDescriptor descriptor)
     {
-        if (!ActiveOverlays.Any(o => o.Descriptor.Id == descriptor.Id))
+        var existing = ActiveOverlays.FirstOrDefault(o => o.Descriptor.Id == descriptor.Id);
+        if (existing != null)
         {
-            ActiveOverlays.Add(new ActiveOverlayViewModel(descriptor));
+            existing.IsVisible = true;
+            existing.IsMinimized = false;
+            existing.BringToFront(ActiveOverlays);
+            return;
         }
+
+        int offsetIndex = ActiveOverlays.Count % 6;
+        var vm = new ActiveOverlayViewModel(descriptor, CloseOverlay)
+        {
+            X = 80 + (offsetIndex * 36),
+            Y = 60 + (offsetIndex * 32),
+            ZIndex = ActiveOverlays.Count + 1
+        };
+        ActiveOverlays.Add(vm);
     }
 
     [RelayCommand]

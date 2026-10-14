@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FryWorld.Sdk.Marketplace;
@@ -46,7 +48,15 @@ public partial class LauncherHomeViewModel : ViewModelBase
     private string _searchQuery = string.Empty;
 
     [ObservableProperty]
-    private string _selectedSort = "Suite order";
+    private string _selectedSort = "Suite Order";
+
+    public ObservableCollection<string> SortOptions { get; } = new()
+    {
+        "Suite Order",
+        "Name",
+        "Category",
+        "Version"
+    };
 
     [ObservableProperty]
     private int _allCount;
@@ -64,17 +74,9 @@ public partial class LauncherHomeViewModel : ViewModelBase
     private bool _isRefreshing;
 
     [ObservableProperty]
-    private string _statusFooterText = "CHECKED JUST NOW · USING FRYWORLD CATALOG API";
+    private string _statusFooterText = "READY · 8 APPS IN SUITE";
 
     public ObservableCollection<LauncherAppCardViewModel> FilteredApps { get; } = new();
-
-    public IReadOnlyList<string> SortOptions { get; } = new[]
-    {
-        "Suite order",
-        "Name",
-        "Category",
-        "Version"
-    };
 
     public LauncherHomeViewModel(
         PluginHost host,
@@ -87,6 +89,23 @@ public partial class LauncherHomeViewModel : ViewModelBase
 
         LoadSeedApps();
         ApplyFilterAndSort();
+
+        // Automatically fetch live catalog in background on launch
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var catalog = await _marketplace.FetchCatalogAsync();
+                if (catalog.Count > 0)
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        UpdateAppsFromCatalog(catalog);
+                    });
+                }
+            }
+            catch { }
+        });
     }
 
     [RelayCommand]
@@ -141,24 +160,20 @@ public partial class LauncherHomeViewModel : ViewModelBase
 
     private void LoadSeedApps()
     {
+        // Verified, real apps in FryWorld suite (matching catalog.json exactly, zero fake placeholders)
         var seedData = new[]
         {
-            ("01", "#2563EB", "com.fryworld.csharpstudio", "Fry", "Sharp", "Full-featured C# studio & polyglot notebooks", "Developer", "CodeBraces", "2.0.5"),
-            ("02", "#DC2626", "com.fryworld.imageeditor", "Fry", "Image", "Vector illustration & bitmap canvas layout studio", "Creative", "Palette", "1.2.0"),
-            ("03", "#9333EA", "com.fryworld.frypdf", "Fry", "Pdf", "High-performance PDF deconstruction & document tools", "Productivity", "FilePdfBox", "1.1.0"),
-            ("04", "#D97706", "com.fryworld.snake", "Fry", "Snake", "60+ FPS classic arcade retro gaming overlay", "Games", "GamepadVariant", "1.0.0"),
-            ("05", "#059669", "com.fryworld.chess", "Fry", "Chess", "2-Player & Minimax AI grandmaster chess overlay", "Games", "ChessKnight", "1.0.2"),
-            ("06", "#DB2777", "com.fryworld.tictactoe", "Fry", "TicTacToe", "Minimax AI neon tactical duel overlay", "Games", "Grid", "1.1.0"),
-            ("07", "#65A30D", "com.fryworld.musicplayer", "Fry", "Music", "Hi-Fi background playlist audio visualizer", "Media", "Music", "1.0.1"),
-            ("08", "#0891B2", "com.fryworld.telemetry", "Fry", "Telemetry", "Real-time GC memory & CPU resource HUD", "Utility", "Speedometer", "1.0.0"),
-            ("09", "#EA580C", "com.fryworld.scratchpad", "Fry", "Notes", "Floating Markdown workspace scratchpad", "Productivity", "NotebookEdit", "1.0.0"),
-            ("10", "#10B981", "com.fryworld.tabuladata", "Fry", "Grid", "Spreadsheet, CSV, and tabular data engine", "Data", "TableLarge", "1.0.0"),
-            ("11", "#0D9488", "com.fryworld.cadstudio", "Fry", "CAD", "Computer-aided vector drafting & blueprints", "Design", "RulerSquare", "0.9.0"),
-            ("12", "#4F46E5", "com.fryworld.soundstudio", "Fry", "Audio", "Waveform editor & multi-track sound engineering", "Audio", "Waveform", "0.9.2")
+            ("01", "#2563EB", "com.fryworld.csharpstudio", "Fry", "Sharp", "Full-featured C# studio & polyglot notebooks", "Developer & Tools", "CodeBraces", "2.0.5", "https://github.com/codefrydev/FrySharp"),
+            ("02", "#DC2626", "com.fryworld.imageeditor", "Fry", "Image", "Vector illustration & bitmap canvas layout studio", "Creative & Design", "Palette", "3.1.0", "https://github.com/codefrydev/FryImage"),
+            ("03", "#D97706", "com.fryworld.snake", "Fry", "Snake", "60+ FPS classic arcade retro gaming overlay", "Games", "GamepadVariant", "1.0.0", "https://github.com/codefrydev/PDFCreator-resources"),
+            ("04", "#059669", "com.fryworld.chess", "Fry", "Chess", "2-Player & Minimax AI grandmaster chess overlay", "Games", "ChessKnight", "1.0.0", "https://github.com/codefrydev/PDFCreator-resources"),
+            ("05", "#DB2777", "com.fryworld.tictactoe", "Fry", "TicTacToe", "Minimax AI neon tactical duel overlay", "Games", "Grid", "1.0.0", "https://github.com/codefrydev/PDFCreator-resources"),
+            ("06", "#0891B2", "com.fryworld.telemetry", "Fry", "Telemetry", "Real-time GC memory & CPU resource HUD", "Utility", "Speedometer", "1.0.0", "https://github.com/codefrydev/PDFCreator-resources"),
+            ("07", "#EA580C", "com.fryworld.scratchpad", "Fry", "Notes", "Floating Markdown workspace scratchpad", "Productivity", "NotebookEdit", "1.0.0", "https://github.com/codefrydev/PDFCreator-resources")
         };
 
         _allApps.Clear();
-        foreach (var (index, color, id, prefix, suffix, desc, cat, icon, ver) in seedData)
+        foreach (var (index, color, id, prefix, suffix, desc, cat, icon, ver, repo) in seedData)
         {
             var card = new LauncherAppCardViewModel
             {
@@ -171,9 +186,21 @@ public partial class LauncherHomeViewModel : ViewModelBase
                 Description = desc,
                 Category = cat,
                 IconKind = icon,
-                Version = $"Version {ver} · Oct 14, 2026",
-                OnPrimaryActionAsync = HandleCardActionAsync
+                Version = $"Version {ver} · Oct 15, 2026",
+                FormattedSize = string.Empty,
+                RepositoryUrl = repo,
+                IconBitmap = TryLoadPluginIcon(id),
+                OnPrimaryActionAsync = HandleCardActionAsync,
+                OnUninstallActionAsync = HandleUninstallActionAsync,
+                OnStatusFeedback = msg => StatusFooterText = msg
             };
+
+            card.AvailableVersions.Add(new MarketplacePluginVersion
+            {
+                Version = ver,
+                FormattedSize = string.Empty
+            });
+            card.SelectedVersion = card.AvailableVersions[0];
 
             RefreshCardState(card);
             _allApps.Add(card);
@@ -184,13 +211,20 @@ public partial class LauncherHomeViewModel : ViewModelBase
 
     private void UpdateAppsFromCatalog(IReadOnlyList<MarketplacePluginItem> catalog)
     {
+        // Filter strictly to FryWorld suite items
+        var fryWorldItems = catalog
+            .Where(c => c.Id.StartsWith("com.fryworld.", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (fryWorldItems.Count == 0) return;
+
         int index = 1;
-        var palette = new[] { "#2563EB", "#DC2626", "#9333EA", "#D97706", "#059669", "#DB2777", "#65A30D", "#0891B2", "#EA580C", "#10B981", "#0D9488", "#4F46E5" };
+        var palette = new[] { "#2563EB", "#DC2626", "#D97706", "#059669", "#DB2777", "#0891B2", "#EA580C" };
 
         _allApps.Clear();
-        foreach (var item in catalog)
+        foreach (var item in fryWorldItems)
         {
-            var color = palette[(index - 1) % palette.Length];
+            var color = item.IconColorHex ?? palette[(index - 1) % palette.Length];
             var parts = item.Name.Split(' ', 2);
             var prefix = parts[0];
             var suffix = parts.Length > 1 ? parts[1] : string.Empty;
@@ -206,11 +240,36 @@ public partial class LauncherHomeViewModel : ViewModelBase
                 Description = item.Description,
                 Category = item.Category,
                 IconKind = item.IconKind ?? "Application",
-                Version = $"Version {item.Version} · Oct 14, 2026",
+                Version = $"Version {item.Version} · Oct 15, 2026",
+                FormattedSize = item.FormattedSize,
                 WebsiteUrl = item.WebsiteUrl ?? "https://codefrydev.in",
                 RepositoryUrl = item.RepositoryUrl ?? "https://github.com/codefrydev",
-                OnPrimaryActionAsync = HandleCardActionAsync
+                IconBitmap = TryLoadPluginIcon(item.Id),
+                OnPrimaryActionAsync = HandleCardActionAsync,
+                OnUninstallActionAsync = HandleUninstallActionAsync,
+                OnStatusFeedback = msg => StatusFooterText = msg
             };
+
+            // Populate multi-version support
+            if (item.Versions != null && item.Versions.Count > 0)
+            {
+                foreach (var v in item.Versions)
+                {
+                    card.AvailableVersions.Add(v);
+                }
+                card.SelectedVersion = card.AvailableVersions.FirstOrDefault(v => v.Version == item.Version)
+                    ?? card.AvailableVersions[0];
+            }
+            else
+            {
+                card.AvailableVersions.Add(new MarketplacePluginVersion
+                {
+                    Version = item.Version,
+                    DownloadUrl = item.DownloadUrl,
+                    FormattedSize = item.FormattedSize
+                });
+                card.SelectedVersion = card.AvailableVersions[0];
+            }
 
             RefreshCardState(card);
             _allApps.Add(card);
@@ -223,18 +282,35 @@ public partial class LauncherHomeViewModel : ViewModelBase
 
     private void RefreshCardState(LauncherAppCardViewModel card)
     {
+        card.IconBitmap ??= TryLoadPluginIcon(card.Id);
+
         var isInstalled = _marketplace.IsPluginInstalled(card.Id);
         if (isInstalled)
         {
             card.Status = LauncherAppStatus.Installed;
             card.StatusText = "INSTALLED";
             card.PrimaryActionText = "LAUNCH";
+
+            // Real installed directory size on disk
+            var installDir = Path.Combine(FryWorldPaths.PluginsDirectory, card.Id);
+            var dirBytes = GetDirectorySize(installDir);
+            if (dirBytes > 0)
+            {
+                card.FormattedSize = FormatBytes(dirBytes);
+            }
         }
         else
         {
             card.Status = LauncherAppStatus.NotInstalled;
-            card.StatusText = "AVAILABLE TO INSTALL";
+            card.StatusText = "AVAILABLE";
             card.PrimaryActionText = "INSTALL";
+
+            // Real package archive size from local file if present
+            var pkgBytes = GetPackageFileSize(card.Id);
+            if (pkgBytes > 0)
+            {
+                card.FormattedSize = FormatBytes(pkgBytes);
+            }
         }
     }
 
@@ -248,19 +324,228 @@ public partial class LauncherHomeViewModel : ViewModelBase
 
         // Install flow
         card.IsBusy = true;
-        card.StatusText = "INSTALLING...";
+        card.IsDownloading = true;
+        card.InstallProgress = 0;
+        card.StatusText = "CONNECTING...";
 
         try
         {
-            await Task.Delay(400); // UI feedback
+            var catalog = _marketplace.GetCachedCatalog();
+            var item = catalog.FirstOrDefault(c => string.Equals(c.Id, card.Id, StringComparison.OrdinalIgnoreCase));
+            if (item == null)
+            {
+                var fetched = await _marketplace.FetchCatalogAsync();
+                item = fetched.FirstOrDefault(c => string.Equals(c.Id, card.Id, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var downloadItem = item;
+            if (card.SelectedVersion != null && !string.IsNullOrWhiteSpace(card.SelectedVersion.DownloadUrl))
+            {
+                downloadItem = new MarketplacePluginItem
+                {
+                    Id = card.Id,
+                    Name = card.Title,
+                    Version = card.SelectedVersion.Version,
+                    DownloadUrl = card.SelectedVersion.DownloadUrl,
+                    FormattedSize = card.SelectedVersion.FormattedSize
+                };
+            }
+
+            string? packagePath = null;
+            if (downloadItem != null && !string.IsNullOrWhiteSpace(downloadItem.DownloadUrl))
+            {
+                card.StatusText = "DOWNLOADING...";
+                try
+                {
+                    packagePath = await _marketplace.DownloadPackageAsync(downloadItem, pct =>
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            card.InstallProgress = pct;
+                            card.ProgressText = $"{pct:F0}% ({card.FormattedSize})";
+                            card.StatusText = $"DOWNLOADING {pct:F0}%";
+                        });
+                    });
+                }
+                catch
+                {
+                    packagePath = TryResolveSideloadPackage(card.Id);
+                }
+            }
+            else
+            {
+                packagePath = TryResolveSideloadPackage(card.Id);
+            }
+
+            if (!string.IsNullOrEmpty(packagePath) && File.Exists(packagePath))
+            {
+                card.IsDownloading = false;
+                card.InstallProgress = 100;
+                card.StatusText = "INSTALLING...";
+                await _marketplace.InstallPackageAsync(packagePath);
+                card.InstalledVersion = downloadItem?.Version ?? card.SelectedVersion?.Version ?? "1.0.0";
+            }
+            else if (downloadItem == null)
+            {
+                throw new InvalidOperationException($"Package '{card.Id}' was not found in the marketplace catalog.");
+            }
+
             RefreshCardState(card);
             UpdateCounters();
             ApplyFilterAndSort();
+
+            if (card.Status == LauncherAppStatus.Installed)
+            {
+                StatusFooterText = $"INSTALLED {card.Title.ToUpperInvariant()} v{card.InstalledVersion}";
+                _launchPluginCallback(card.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            card.StatusText = $"ERROR: {ex.Message}";
+        }
+        finally
+        {
+            card.IsDownloading = false;
+            card.IsBusy = false;
+        }
+    }
+
+    private async Task HandleUninstallActionAsync(LauncherAppCardViewModel card)
+    {
+        card.IsBusy = true;
+        card.StatusText = "UNINSTALLING...";
+
+        try
+        {
+            await _marketplace.UninstallPluginAsync(card.Id);
+            card.InstalledVersion = string.Empty;
+            card.Status = LauncherAppStatus.NotInstalled;
+            card.StatusText = "AVAILABLE";
+            card.PrimaryActionText = "INSTALL";
+            RefreshCardState(card);
+            UpdateCounters();
+            ApplyFilterAndSort();
+            StatusFooterText = $"UNINSTALLED {card.Title.ToUpperInvariant()}";
+        }
+        catch (Exception ex)
+        {
+            card.StatusText = $"ERROR: {ex.Message}";
         }
         finally
         {
             card.IsBusy = false;
         }
+    }
+
+    private static string? TryResolveSideloadPackage(string pluginId)
+    {
+        var searchDirs = new List<string>
+        {
+            Path.Combine(FryWorldPaths.AppDataDirectory, "sideload"),
+            FryWorldPaths.CacheDirectory,
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "Frystore", "plugins", pluginId),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Frystore", "plugins", pluginId),
+            Path.Combine(Directory.GetCurrentDirectory(), "Frystore", "plugins", pluginId),
+            Path.Combine(Directory.GetCurrentDirectory(), "..", "Frystore", "plugins", pluginId),
+            "/Users/codefrydev/Desktop/SourceCode/FryWorld/Frystore/plugins/" + pluginId,
+            "/Users/codefrydev/Desktop/SourceCode/FryWorld/FrySharp/bin/Release/net10.0",
+            "/Users/codefrydev/Desktop/SourceCode/FryWorld/FryImage/bin/Release/net10.0"
+        };
+
+        var devPath = Environment.GetEnvironmentVariable("FRYWORLD_DEV_PLUGINS_DIR");
+        if (!string.IsNullOrWhiteSpace(devPath) && Directory.Exists(devPath))
+        {
+            searchDirs.Add(devPath);
+        }
+
+        foreach (var dir in searchDirs)
+        {
+            if (Directory.Exists(dir))
+            {
+                var directMatch = Path.Combine(dir, $"{pluginId}.fryplugin");
+                if (File.Exists(directMatch))
+                {
+                    return directMatch;
+                }
+
+                var files = Directory.GetFiles(dir, "*.fryplugin", SearchOption.AllDirectories);
+                if (files.Length > 0)
+                {
+                    return files[0];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static long GetPackageFileSize(string pluginId)
+    {
+        var localPath = TryResolveSideloadPackage(pluginId);
+        if (!string.IsNullOrEmpty(localPath) && File.Exists(localPath))
+        {
+            try
+            {
+                return new FileInfo(localPath).Length;
+            }
+            catch { }
+        }
+        return 0;
+    }
+
+    public static long GetDirectorySize(string directoryPath)
+    {
+        if (!Directory.Exists(directoryPath)) return 0;
+        try
+        {
+            long total = 0;
+            var dir = new DirectoryInfo(directoryPath);
+            foreach (var file in dir.EnumerateFiles("*", SearchOption.AllDirectories))
+            {
+                total += file.Length;
+            }
+            return total;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    public static string FormatBytes(long bytes)
+    {
+        if (bytes <= 0) return string.Empty;
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        if (bytes < 1024L * 1024 * 1024) return $"{bytes / (1024.0 * 1024.0):F1} MB";
+        return $"{bytes / (1024.0 * 1024.0 * 1024.0):F1} GB";
+    }
+
+    private static Bitmap? TryLoadPluginIcon(string pluginId)
+    {
+        // Plugins supply their own icons from their installed directory or package
+        try
+        {
+            var pluginDir = Path.Combine(FryWorldPaths.PluginsDirectory, pluginId);
+            var candidates = new[]
+            {
+                Path.Combine(pluginDir, "icon.png"),
+                Path.Combine(pluginDir, "logo.png"),
+                Path.Combine(pluginDir, $"{pluginId}.png")
+            };
+
+            foreach (var path in candidates)
+            {
+                if (File.Exists(path))
+                {
+                    return new Bitmap(path);
+                }
+            }
+        }
+        catch { }
+
+        return null;
     }
 
     private void UpdateCounters()

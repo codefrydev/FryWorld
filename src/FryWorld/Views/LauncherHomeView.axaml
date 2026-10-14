@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:FryWorld.ViewModels"
              xmlns:material="using:Material.Icons.Avalonia"
+             xmlns:marketplace="using:FryWorld.Sdk.Marketplace"
              x:Class="FryWorld.Views.LauncherHomeView"
              x:DataType="vm:LauncherHomeViewModel">
 
@@ -141,8 +142,6 @@
     </Border>
 
     <!-- ======================================================== -->
-    <!-- ZONE 3: 4-COLUMN SUITE APP CARDS GRID                    -->
-    <!-- ======================================================== -->
     <!-- ZONE 3: SUITE APP CARDS (GRID & TABLE MODES)             -->
     <!-- ======================================================== -->
     <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Padding="24">
@@ -158,77 +157,170 @@
 
           <ItemsControl.ItemTemplate>
             <DataTemplate DataType="vm:LauncherAppCardViewModel">
-              <Border Classes="launcher-card" Margin="6">
+              <Border Classes="launcher-card" Margin="6" Padding="16,14" VerticalAlignment="Top">
                 <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
 
-                  <!-- 1. Top Row: Numbered Tag & External Links -->
-                  <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
-                    <!-- Tag Pill (01, 02...) -->
-                    <Border Grid.Column="0" Classes="launcher-index-tag" Background="{Binding IndexColorHex}">
-                      <TextBlock Text="{Binding IndexTag}" FontSize="10" FontWeight="Black" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                  <!-- 1. Header: 52x52 Official Brand Icon Squircle + Title + Category + Options Menu -->
+                  <Grid Grid.Row="0" ColumnDefinitions="52,*,Auto" Margin="0,0,0,10">
+                    <!-- Squircle with Official Vector / Plugin Logo -->
+                    <Border Grid.Column="0" Width="52" Height="52" CornerRadius="14"
+                            Background="{Binding IconBackgroundBrush}"
+                            BorderBrush="{Binding IndexColorHex}" BorderThickness="1.5"
+                            BoxShadow="0 4 12 #20000000"
+                            ClipToBounds="True"
+                            VerticalAlignment="Center">
+                      <Panel>
+                        <!-- Official Brand Dragon Logo Bitmap -->
+                        <Image Source="{Binding IconBitmap}"
+                               Width="48" Height="48"
+                               Stretch="Uniform"
+                               IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <!-- Fallback Vector Glyph -->
+                        <material:MaterialIcon Kind="{Binding IconKind}"
+                                               Width="26" Height="26"
+                                               Foreground="{Binding IndexColorHex}"
+                                               IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNull}}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Panel>
                     </Border>
 
-                    <!-- Right Links (WEBSITE ↗, GITHUB ↗) -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                      <Button Command="{Binding OpenWebsiteCommand}" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand">
-                        <StackPanel Orientation="Horizontal" Spacing="2">
-                          <TextBlock Text="WEBSITE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
-                          <material:MaterialIcon Kind="ArrowTopRight" Width="10" Height="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
-                        </StackPanel>
-                      </Button>
-                      <Button Command="{Binding OpenRepositoryCommand}" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand">
-                        <StackPanel Orientation="Horizontal" Spacing="2">
-                          <TextBlock Text="GITHUB" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
-                          <material:MaterialIcon Kind="ArrowTopRight" Width="10" Height="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
-                        </StackPanel>
-                      </Button>
-                    </StackPanel>
-                  </Grid>
+                    <!-- Title, Index Tag, Category -->
+                    <StackPanel Grid.Column="1" Margin="10,0,4,0" VerticalAlignment="Center" Spacing="3">
+                      <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                        <!-- Index Tag Pill -->
+                        <Border Grid.Column="0" Background="{Binding IndexColorHex}" CornerRadius="4" Padding="5,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding IndexTag}" FontSize="9" FontWeight="Black" Foreground="White" />
+                        </Border>
+                        <!-- App Title -->
+                        <TextBlock Grid.Column="1" FontSize="14" FontWeight="Black" TextTrimming="CharacterEllipsis" MaxLines="1" VerticalAlignment="Center">
+                          <Run Text="{Binding TitlePrefix}" Foreground="{DynamicResource M3OnSurfaceBrush}" /><Run Text="{Binding TitleSuffix}" Foreground="{Binding IndexColorHex}" />
+                        </TextBlock>
+                      </Grid>
 
-                  <!-- 2. Middle Row: App Logo Squircle & Dual-Tone Title -->
-                  <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,16,0,8">
-                    <!-- Squircle Icon Box -->
-                    <Border Grid.Column="0" Width="44" Height="44" CornerRadius="12" Background="{DynamicResource M3SurfaceContainerHighestBrush}" Margin="0,0,12,0">
-                      <material:MaterialIcon Kind="{Binding IconKind}" Width="24" Height="24" Foreground="{DynamicResource M3PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-
-                    <!-- Title & Tagline -->
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                      <StackPanel Orientation="Horizontal" Spacing="1">
-                        <TextBlock Text="{Binding TitlePrefix}" FontSize="15" FontWeight="Black" Foreground="{DynamicResource M3OnSurfaceBrush}" />
-                        <TextBlock Text="{Binding TitleSuffix}" FontSize="15" FontWeight="Black" Foreground="{DynamicResource M3PrimaryBrush}" />
+                      <!-- Category & Short Version Line -->
+                      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Category}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                        <TextBlock Text="•" FontSize="9" Foreground="{DynamicResource M3OutlineBrush}" />
+                        <TextBlock Text="{Binding VersionShortText}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource M3PrimaryBrush}" />
                       </StackPanel>
-                      <TextBlock Text="{Binding Description}" FontSize="11" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" />
                     </StackPanel>
-                  </Grid>
 
-                  <!-- 3. Status Pill Tag -->
-                  <Border Grid.Row="2" HorizontalAlignment="Left" CornerRadius="4" Background="{DynamicResource M3SurfaceContainerHighestBrush}" Padding="6,2" Margin="0,6,0,8">
-                    <TextBlock Text="{Binding StatusText}" FontSize="9" FontWeight="Bold" LetterSpacing="0.5" Foreground="{DynamicResource M3PrimaryBrush}" />
-                  </Border>
-
-                  <!-- 4. Version and Date -->
-                  <TextBlock Grid.Row="3" Text="{Binding Version}" FontSize="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" Margin="0,0,0,14" />
-
-                  <!-- 5. Primary Action (INSTALL / LAUNCH) & Menu -->
-                  <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,4,0,0">
-                    <Button Grid.Column="0"
-                            Classes="m3-card-action"
-                            Command="{Binding ExecutePrimaryActionCommand}"
-                            Content="{Binding PrimaryActionText}"
-                            Margin="0,0,6,0" />
-
-                    <!-- Options Menu (...) -->
-                    <Button Grid.Column="1"
-                            Command="{Binding ExecuteOptionsCommand}"
+                    <!-- Context Menu Button (...) -->
+                    <Button Grid.Column="2"
                             CornerRadius="8"
-                            Width="36" Height="36"
-                            Background="{DynamicResource M3SurfaceContainerHighestBrush}"
+                            Width="30" Height="30"
+                            Background="Transparent"
                             BorderThickness="0"
-                            Cursor="Hand">
-                      <material:MaterialIcon Kind="DotsHorizontal" Width="18" Height="18" Foreground="{DynamicResource M3OnSurfaceBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            Padding="0"
+                            Cursor="Hand"
+                            ToolTip.Tip="App Options"
+                            VerticalAlignment="Top">
+                      <material:MaterialIcon Kind="DotsVertical" Width="18" Height="18" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      <Button.Flyout>
+                        <MenuFlyout Placement="BottomEdgeAlignedRight">
+                          <MenuItem Header="Launch App" Command="{Binding ExecutePrimaryActionCommand}" IsVisible="{Binding IsInstalled}">
+                            <MenuItem.Icon>
+                              <material:MaterialIcon Kind="RocketLaunch" Width="16" Height="16" Foreground="{DynamicResource M3PrimaryBrush}"/>
+                            </MenuItem.Icon>
+                          </MenuItem>
+                          <MenuItem Header="Uninstall App" Command="{Binding ExecuteUninstallCommand}" IsVisible="{Binding IsInstalled}">
+                            <MenuItem.Icon>
+                              <material:MaterialIcon Kind="TrashCanOutline" Width="16" Height="16" Foreground="#EF4444"/>
+                            </MenuItem.Icon>
+                          </MenuItem>
+                          <Separator IsVisible="{Binding IsInstalled}"/>
+                          <MenuItem Header="Copy Extension ID" Command="{Binding CopyIdCommand}">
+                            <MenuItem.Icon>
+                              <material:MaterialIcon Kind="ContentCopy" Width="16" Height="16"/>
+                            </MenuItem.Icon>
+                          </MenuItem>
+                          <MenuItem Header="Visit Website ↗" Command="{Binding OpenWebsiteCommand}">
+                            <MenuItem.Icon>
+                              <material:MaterialIcon Kind="Web" Width="16" Height="16"/>
+                            </MenuItem.Icon>
+                          </MenuItem>
+                          <MenuItem Header="Source Repository ↗" Command="{Binding OpenRepositoryCommand}">
+                            <MenuItem.Icon>
+                              <material:MaterialIcon Kind="Github" Width="16" Height="16"/>
+                            </MenuItem.Icon>
+                          </MenuItem>
+                        </MenuFlyout>
+                      </Button.Flyout>
                     </Button>
                   </Grid>
+
+                  <!-- 2. Description (2 Full Lines with TextTrimming) -->
+                  <TextBlock Grid.Row="1" Text="{Binding Description}" FontSize="11"
+                             Foreground="{DynamicResource M3OnSurfaceVariantBrush}"
+                             TextWrapping="Wrap" MaxLines="2" LineHeight="15"
+                             Margin="0,0,0,10" />
+
+                  <!-- 3. Metadata Badges: Status Badge + Single Real Size Pill + Multi-Version Dropdown -->
+                  <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,0,0,12" VerticalAlignment="Center">
+                    <!-- Left: Status Pill + Real Size Pill -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                      <!-- Status Badge -->
+                      <Border CornerRadius="6" Background="{Binding StatusBackgroundBrush}" Padding="7,3">
+                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                          <material:MaterialIcon Kind="{Binding StatusIconKind}" Width="11" Height="11" Foreground="{Binding StatusForegroundBrush}" />
+                          <TextBlock Text="{Binding StatusText}" FontSize="9.5" FontWeight="Bold" LetterSpacing="0.4" Foreground="{Binding StatusForegroundBrush}" />
+                        </StackPanel>
+                      </Border>
+
+                      <!-- Single Real File Size Pill (Visible ONLY when FormattedSize is non-empty) -->
+                      <Border CornerRadius="6" Background="{DynamicResource M3SurfaceContainerHighestBrush}"
+                              BorderBrush="{DynamicResource M3OutlineVariantBrush}" BorderThickness="1"
+                              Padding="7,3"
+                              IsVisible="{Binding FormattedSize, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                          <material:MaterialIcon Kind="Harddisk" Width="11" Height="11" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                          <TextBlock Text="{Binding FormattedSize}" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                        </StackPanel>
+                      </Border>
+                    </StackPanel>
+
+                    <!-- Right: Multi-version ComboBox if multiple versions exist -->
+                    <ComboBox Grid.Column="1"
+                              ItemsSource="{Binding AvailableVersions}"
+                              SelectedItem="{Binding SelectedVersion, Mode=TwoWay}"
+                              IsVisible="{Binding HasMultipleVersions}"
+                              Height="26" MinWidth="80" FontSize="10.5" Padding="6,2"
+                              CornerRadius="6"
+                              Background="{DynamicResource M3SurfaceContainerLowBrush}"
+                              BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+                              Foreground="{DynamicResource M3OnSurfaceBrush}"
+                              ToolTip.Tip="Select package version">
+                      <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="marketplace:MarketplacePluginVersion">
+                          <TextBlock Text="{Binding Version, StringFormat='v{0}'}" FontSize="10.5" FontWeight="SemiBold" />
+                        </DataTemplate>
+                      </ComboBox.ItemTemplate>
+                    </ComboBox>
+                  </Grid>
+
+                  <!-- 4. Downloading Progress Indicator (Visible when IsBusy) -->
+                  <Grid Grid.Row="3" RowDefinitions="Auto,Auto" Margin="0,0,0,8" IsVisible="{Binding IsBusy}">
+                    <ProgressBar Grid.Row="0" Minimum="0" Maximum="100" Value="{Binding InstallProgress}"
+                                 Height="5" CornerRadius="2.5"
+                                 Foreground="{Binding IndexColorHex}"
+                                 Background="{DynamicResource M3SurfaceContainerHighestBrush}" />
+                    <TextBlock Grid.Row="1" Text="{Binding ProgressText}" FontSize="9" FontWeight="Bold"
+                               Foreground="{Binding IndexColorHex}" HorizontalAlignment="Right" Margin="0,2,0,0" />
+                  </Grid>
+
+                  <!-- 5. Action Button Row: Full-Width Primary Action with Icon -->
+                  <Button Grid.Row="4"
+                          Classes="m3-card-action"
+                          Command="{Binding ExecutePrimaryActionCommand}"
+                          IsEnabled="{Binding !IsBusy}"
+                          HorizontalAlignment="Stretch"
+                          Height="34">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                      <material:MaterialIcon Kind="{Binding PrimaryActionIconKind}" Width="15" Height="15" VerticalAlignment="Center" />
+                      <TextBlock Text="{Binding PrimaryActionText}" FontSize="12" FontWeight="Black" LetterSpacing="0.8" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </Button>
 
                 </Grid>
               </Border>
@@ -241,46 +333,100 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate DataType="vm:LauncherAppCardViewModel">
               <Border Classes="launcher-card" Margin="0,0,0,8" Padding="14,10">
-                <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto">
+                <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto">
                   <!-- Index Tag -->
                   <Border Grid.Column="0" Classes="launcher-index-tag" Background="{Binding IndexColorHex}" Margin="0,0,12,0" VerticalAlignment="Center">
                     <TextBlock Text="{Binding IndexTag}" FontSize="10" FontWeight="Black" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Center" />
                   </Border>
 
-                  <!-- Icon Box -->
-                  <Border Grid.Column="1" Width="36" Height="36" CornerRadius="10" Background="{DynamicResource M3SurfaceContainerHighestBrush}" Margin="0,0,14,0" VerticalAlignment="Center">
-                    <material:MaterialIcon Kind="{Binding IconKind}" Width="20" Height="20" Foreground="{DynamicResource M3PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  <!-- Icon Squircle with Vector / Plugin Logo -->
+                  <Border Grid.Column="1" Width="38" Height="38" CornerRadius="10"
+                          Background="{Binding IconBackgroundBrush}"
+                          BorderBrush="{Binding IndexColorHex}" BorderThickness="1.5"
+                          BoxShadow="0 2 8 #18000000"
+                          ClipToBounds="True"
+                          Margin="0,0,14,0" VerticalAlignment="Center">
+                    <Panel>
+                      <Image Source="{Binding IconBitmap}"
+                             Width="34" Height="34"
+                             Stretch="Uniform"
+                             IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"
+                             HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      <material:MaterialIcon Kind="{Binding IconKind}"
+                                             Width="20" Height="20"
+                                             Foreground="{Binding IndexColorHex}"
+                                             IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNull}}"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Panel>
                   </Border>
 
                   <!-- Title & Description -->
                   <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2" Margin="0,0,16,0">
                     <StackPanel Orientation="Horizontal" Spacing="2">
                       <TextBlock Text="{Binding TitlePrefix}" FontSize="14" FontWeight="Black" Foreground="{DynamicResource M3OnSurfaceBrush}" />
-                      <TextBlock Text="{Binding TitleSuffix}" FontSize="14" FontWeight="Black" Foreground="{DynamicResource M3PrimaryBrush}" />
+                      <TextBlock Text="{Binding TitleSuffix}" FontSize="14" FontWeight="Black" Foreground="{Binding IndexColorHex}" />
                     </StackPanel>
                     <TextBlock Text="{Binding Description}" FontSize="11" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" TextTrimming="CharacterEllipsis" MaxLines="1" />
                   </StackPanel>
 
                   <!-- Category Pill -->
-                  <Border Grid.Column="3" Background="{DynamicResource M3SurfaceContainerHighestBrush}" CornerRadius="6" Padding="8,3" VerticalAlignment="Center" Margin="0,0,16,0">
+                  <Border Grid.Column="3" Background="{DynamicResource M3SurfaceContainerHighestBrush}" CornerRadius="6" Padding="8,3" VerticalAlignment="Center" Margin="0,0,12,0">
                     <TextBlock Text="{Binding Category}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
                   </Border>
 
+                  <!-- Status Pill -->
+                  <Border Grid.Column="4" CornerRadius="6" Background="{Binding StatusBackgroundBrush}" Padding="8,3" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                      <material:MaterialIcon Kind="{Binding StatusIconKind}" Width="11" Height="11" Foreground="{Binding StatusForegroundBrush}" />
+                      <TextBlock Text="{Binding StatusText}" FontSize="10" FontWeight="Bold" Foreground="{Binding StatusForegroundBrush}" />
+                    </StackPanel>
+                  </Border>
+
+                  <!-- Size Pill (Visible ONLY when FormattedSize is not empty) -->
+                  <Border Grid.Column="5" Background="{DynamicResource M3SurfaceContainerLowBrush}" BorderBrush="{DynamicResource M3OutlineVariantBrush}" BorderThickness="1" CornerRadius="6" Padding="8,3" VerticalAlignment="Center" Margin="0,0,12,0"
+                          IsVisible="{Binding FormattedSize, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                      <material:MaterialIcon Kind="Harddisk" Width="11" Height="11" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding FormattedSize}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Border>
+
                   <!-- Version -->
-                  <TextBlock Grid.Column="4" Text="{Binding Version}" FontSize="11" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" VerticalAlignment="Center" Margin="0,0,20,0" />
+                  <Panel Grid.Column="6" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <ComboBox ItemsSource="{Binding AvailableVersions}"
+                              SelectedItem="{Binding SelectedVersion, Mode=TwoWay}"
+                              IsVisible="{Binding HasMultipleVersions}"
+                              Height="26" MinWidth="85" FontSize="11" Padding="6,2"
+                              CornerRadius="6"
+                              Background="{DynamicResource M3SurfaceContainerLowBrush}"
+                              BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+                              Foreground="{DynamicResource M3OnSurfaceBrush}">
+                      <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="marketplace:MarketplacePluginVersion">
+                          <TextBlock Text="{Binding Version, StringFormat='v{0}'}" FontSize="11" FontWeight="SemiBold" />
+                        </DataTemplate>
+                      </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock Text="{Binding VersionShortText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}"
+                               IsVisible="{Binding !HasMultipleVersions}" VerticalAlignment="Center" />
+                  </Panel>
 
                   <!-- Action Button -->
-                  <Button Grid.Column="5"
+                  <Button Grid.Column="7"
                           Classes="m3-card-action"
                           Command="{Binding ExecutePrimaryActionCommand}"
-                          Content="{Binding PrimaryActionText}"
-                          Width="100" Height="32"
+                          IsEnabled="{Binding !IsBusy}"
+                          Width="120" Height="32"
                           Margin="0,0,8,0"
-                          VerticalAlignment="Center" />
+                          VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="5" HorizontalAlignment="Center" VerticalAlignment="Center">
+                      <material:MaterialIcon Kind="{Binding PrimaryActionIconKind}" Width="13" Height="13" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding PrimaryActionText}" FontSize="11" FontWeight="Black" LetterSpacing="0.6" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
 
-                  <!-- Menu Button -->
-                  <Button Grid.Column="6"
-                          Command="{Binding ExecuteOptionsCommand}"
+                  <!-- Menu Button with Flyout -->
+                  <Button Grid.Column="8"
                           CornerRadius="8"
                           Width="32" Height="32"
                           Background="{DynamicResource M3SurfaceContainerHighestBrush}"
@@ -288,6 +434,36 @@
                           Cursor="Hand"
                           VerticalAlignment="Center">
                     <material:MaterialIcon Kind="DotsHorizontal" Width="16" Height="16" Foreground="{DynamicResource M3OnSurfaceBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Button.Flyout>
+                      <MenuFlyout Placement="BottomEdgeAlignedRight">
+                        <MenuItem Header="Launch App" Command="{Binding ExecutePrimaryActionCommand}" IsVisible="{Binding IsInstalled}">
+                          <MenuItem.Icon>
+                            <material:MaterialIcon Kind="RocketLaunch" Width="16" Height="16" Foreground="{DynamicResource M3PrimaryBrush}"/>
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Uninstall App" Command="{Binding ExecuteUninstallCommand}" IsVisible="{Binding IsInstalled}">
+                          <MenuItem.Icon>
+                            <material:MaterialIcon Kind="TrashCanOutline" Width="16" Height="16" Foreground="#EF4444"/>
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <Separator IsVisible="{Binding IsInstalled}"/>
+                        <MenuItem Header="Copy Extension ID" Command="{Binding CopyIdCommand}">
+                          <MenuItem.Icon>
+                            <material:MaterialIcon Kind="ContentCopy" Width="16" Height="16"/>
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Visit Website ↗" Command="{Binding OpenWebsiteCommand}">
+                          <MenuItem.Icon>
+                            <material:MaterialIcon Kind="Web" Width="16" Height="16"/>
+                          </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Source Repository ↗" Command="{Binding OpenRepositoryCommand}">
+                          <MenuItem.Icon>
+                            <material:MaterialIcon Kind="Github" Width="16" Height="16"/>
+                          </MenuItem.Icon>
+                        </MenuItem>
+                      </MenuFlyout>
+                    </Button.Flyout>
                   </Button>
                 </Grid>
               </Border>
