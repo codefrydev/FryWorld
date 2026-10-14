@@ -55,8 +55,8 @@ jobs:
     name: Run Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-dotnet@3951f0dfe7a07e2313ec93c75700083e2005cbab # v4.3.0
         with:
           dotnet-version: '10.0.x'
       - name: Restore & Build
@@ -72,8 +72,8 @@ jobs:
       VERSION: ${{ needs.determine-version.outputs.version }}
       FOUR_PART_VERSION: ${{ needs.determine-version.outputs.four_part_version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-dotnet@3951f0dfe7a07e2313ec93c75700083e2005cbab # v4.3.0
         with:
           dotnet-version: '10.0.x'
 
@@ -99,14 +99,14 @@ jobs:
           .\packaging\windows\msix\build-msix.ps1 -Version "$env:VERSION" -PublishDir "$env:GITHUB_WORKSPACE\publish\win-x64" -OutputDir "$env:GITHUB_WORKSPACE\packaging\windows"
 
       - name: Upload Windows Installer (.exe)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: windows-installer
           path: packaging/windows/FryWorld-Setup-${{ needs.determine-version.outputs.version }}.exe
           if-no-files-found: error
 
       - name: Upload Windows MSIX Package (.msix)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: windows-msix
           path: |
@@ -122,8 +122,8 @@ jobs:
       VERSION: ${{ needs.determine-version.outputs.version }}
       FOUR_PART_VERSION: ${{ needs.determine-version.outputs.four_part_version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-dotnet@3951f0dfe7a07e2313ec93c75700083e2005cbab # v4.3.0
         with:
           dotnet-version: '10.0.x'
 
@@ -188,7 +188,7 @@ jobs:
             --output "FryWorld-$VERSION-x64.dmg"
 
       - name: Upload macOS DMG Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: macos-dmg
           path: |
@@ -204,8 +204,8 @@ jobs:
       VERSION: ${{ needs.determine-version.outputs.version }}
       FOUR_PART_VERSION: ${{ needs.determine-version.outputs.four_part_version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-dotnet@3951f0dfe7a07e2313ec93c75700083e2005cbab # v4.3.0
         with:
           dotnet-version: '10.0.x'
 
@@ -226,7 +226,7 @@ jobs:
             --output-dir "$GITHUB_WORKSPACE/packaging/linux"
 
       - name: Upload Linux Tarball
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: linux-tarball
           path: packaging/linux/FryWorld-${{ needs.determine-version.outputs.version }}-linux-x64.tar.gz
@@ -241,10 +241,10 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           path: artifacts
 
