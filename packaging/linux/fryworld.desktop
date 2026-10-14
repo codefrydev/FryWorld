@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=FryWorld
+Comment=Creative & Developer Suite Launcher
+Exec=FryWorld %u
+Icon=fryworld
+Terminal=false
+Type=Application
+Categories=Development;Graphics;AudioVideo;Utility;
+Keywords=fryworld;launcher;sdk;csharp;code;studio;

@@ -1,0 +1,269 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version tag (e.g. 1.0.0 or v1.0.0)'
+        required: false
+        default: ''
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  determine-version:
+    name: Determine Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      four_part_version: ${{ steps.version.outputs.four_part_version }}
+    steps:
+      - name: Determine version from git tag
+        id: version
+        shell: bash
+        run: |
+          RAW_VER=""
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            RAW_VER="${{ github.event.inputs.version }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            RAW_VER="${GITHUB_REF_NAME}"
+          else
+            RAW_VER="1.0.0-dev"
+          fi
+
+          # Strip leading 'v' or 'V'
+          CLEAN_VER="${RAW_VER#[vV]}"
+          echo "version=${CLEAN_VER}" >> "$GITHUB_OUTPUT"
+
+          # Compute 4-part numeric version for Windows assembly & MSIX (Major.Minor.Build.Revision)
+          BASE_NUMERIC=$(echo "$CLEAN_VER" | cut -d'-' -f1)
+          IFS='.' read -r -a PARTS <<< "$BASE_NUMERIC"
+          P0="${PARTS[0]:-1}"
+          P1="${PARTS[1]:-0}"
+          P2="${PARTS[2]:-0}"
+          P3="${PARTS[3]:-0}"
+          FOUR_PART="$P0.$P1.$P2.$P3"
+          echo "four_part_version=${FOUR_PART}" >> "$GITHUB_OUTPUT"
+          echo "Resolved Release Version: ${CLEAN_VER} (4-part: ${FOUR_PART})"
+
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore & Build
+        run: dotnet build FryWorld.slnx -c Release
+      - name: Run Test Suite
+        run: dotnet test --no-build -c Release --verbosity normal
+
+  build-windows:
+    name: Build Windows (MSIX & Inno Setup)
+    needs: [determine-version, test]
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.determine-version.outputs.version }}
+      FOUR_PART_VERSION: ${{ needs.determine-version.outputs.four_part_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish win-x64
+        shell: pwsh
+        run: >
+          dotnet publish src/FryWorld/FryWorld.csproj -c Release -r win-x64 --self-contained true
+          -p:Version=$env:VERSION
+          -p:AssemblyVersion=$env:FOUR_PART_VERSION
+          -p:FileVersion=$env:FOUR_PART_VERSION
+          -p:InformationalVersion=$env:VERSION
+          -o publish/win-x64
+
+      # ISCC.exe is preinstalled on windows-latest runner
+      - name: Build Inno Setup installer (.exe)
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\installer.iss "/DMyAppVersion=$env:VERSION" "/DMyAppVersionNumeric=$env:FOUR_PART_VERSION" "/DMyPublishDir=$env:GITHUB_WORKSPACE\publish\win-x64"
+
+      - name: Build & Sign Windows MSIX Package (.msix)
+        shell: pwsh
+        run: |
+          .\packaging\windows\msix\build-msix.ps1 -Version "$env:VERSION" -PublishDir "$env:GITHUB_WORKSPACE\publish\win-x64" -OutputDir "$env:GITHUB_WORKSPACE\packaging\windows"
+
+      - name: Upload Windows Installer (.exe)
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: packaging/windows/FryWorld-Setup-${{ needs.determine-version.outputs.version }}.exe
+          if-no-files-found: error
+
+      - name: Upload Windows MSIX Package (.msix)
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msix
+          path: |
+            packaging/windows/FryWorld-${{ needs.determine-version.outputs.version }}-x64.msix
+            packaging/windows/FryWorld-${{ needs.determine-version.outputs.version }}-PublicCert.cer
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS (DMG)
+    needs: [determine-version, test]
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.determine-version.outputs.version }}
+      FOUR_PART_VERSION: ${{ needs.determine-version.outputs.four_part_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Apple Silicon (arm64)
+      - name: Publish osx-arm64
+        run: >
+          dotnet publish src/FryWorld/FryWorld.csproj -c Release -r osx-arm64 --self-contained true
+          -p:Version=$VERSION
+          -p:AssemblyVersion=$FOUR_PART_VERSION
+          -p:FileVersion=$FOUR_PART_VERSION
+          -p:InformationalVersion=$VERSION
+          -o publish/osx-arm64
+
+      - name: Assemble .app bundle (arm64)
+        run: |
+          APP="FryWorld.app"
+          rm -rf "$APP"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp -R publish/osx-arm64/. "$APP/Contents/MacOS/"
+          sed "s/__VERSION__/$VERSION/g" packaging/macos/Info.plist.template > "$APP/Contents/Info.plist"
+          cp packaging/macos/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+          chmod +x "$APP/Contents/MacOS/FryWorld"
+
+      - name: Ad-hoc codesign (arm64)
+        run: codesign --force --deep --sign - "FryWorld.app"
+
+      - name: Create branded dmg (arm64)
+        run: |
+          bash packaging/macos/make-dmg.sh \
+            --app "FryWorld.app" \
+            --volname "FryWorld" \
+            --output "FryWorld-$VERSION-arm64.dmg"
+
+      # Intel Mac (x64)
+      - name: Publish osx-x64
+        run: >
+          dotnet publish src/FryWorld/FryWorld.csproj -c Release -r osx-x64 --self-contained true
+          -p:Version=$VERSION
+          -p:AssemblyVersion=$FOUR_PART_VERSION
+          -p:FileVersion=$FOUR_PART_VERSION
+          -p:InformationalVersion=$VERSION
+          -o publish/osx-x64
+
+      - name: Assemble .app bundle (x64)
+        run: |
+          APP="FryWorld.app"
+          rm -rf "$APP"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp -R publish/osx-x64/. "$APP/Contents/MacOS/"
+          sed "s/__VERSION__/$VERSION/g" packaging/macos/Info.plist.template > "$APP/Contents/Info.plist"
+          cp packaging/macos/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+          chmod +x "$APP/Contents/MacOS/FryWorld"
+
+      - name: Ad-hoc codesign (x64)
+        run: codesign --force --deep --sign - "FryWorld.app"
+
+      - name: Create branded dmg (x64)
+        run: |
+          bash packaging/macos/make-dmg.sh \
+            --app "FryWorld.app" \
+            --volname "FryWorld" \
+            --output "FryWorld-$VERSION-x64.dmg"
+
+      - name: Upload macOS DMG Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: |
+            FryWorld-${{ needs.determine-version.outputs.version }}-arm64.dmg
+            FryWorld-${{ needs.determine-version.outputs.version }}-x64.dmg
+          if-no-files-found: error
+
+  build-linux:
+    name: Build Linux (Tarball)
+    needs: [determine-version, test]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.determine-version.outputs.version }}
+      FOUR_PART_VERSION: ${{ needs.determine-version.outputs.four_part_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish linux-x64
+        run: >
+          dotnet publish src/FryWorld/FryWorld.csproj -c Release -r linux-x64 --self-contained true
+          -p:Version=$VERSION
+          -p:AssemblyVersion=$FOUR_PART_VERSION
+          -p:FileVersion=$FOUR_PART_VERSION
+          -p:InformationalVersion=$VERSION
+          -o publish/linux-x64
+
+      - name: Package Linux Tarball
+        run: |
+          bash packaging/linux/build-tarball.sh \
+            --version "$VERSION" \
+            --publish-dir "$GITHUB_WORKSPACE/publish/linux-x64" \
+            --output-dir "$GITHUB_WORKSPACE/packaging/linux"
+
+      - name: Upload Linux Tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-tarball
+          path: packaging/linux/FryWorld-${{ needs.determine-version.outputs.version }}-linux-x64.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: [determine-version, test, build-windows, build-macos, build-linux]
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.determine-version.outputs.version }}
+        run: |
+          TAG_NAME="v$VERSION"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+          fi
+
+          gh release create "$TAG_NAME" \
+            "artifacts/windows-installer/FryWorld-Setup-$VERSION.exe" \
+            "artifacts/windows-msix/FryWorld-$VERSION-x64.msix" \
+            "artifacts/windows-msix/FryWorld-$VERSION-PublicCert.cer" \
+            "artifacts/macos-dmg/FryWorld-$VERSION-arm64.dmg" \
+            "artifacts/macos-dmg/FryWorld-$VERSION-x64.dmg" \
+            "artifacts/linux-tarball/FryWorld-$VERSION-linux-x64.tar.gz" \
+            --title "FryWorld $TAG_NAME" \
+            --generate-notes

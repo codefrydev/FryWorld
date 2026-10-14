@@ -6,6 +6,7 @@
         x:Class="FryWorld.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="FryWorld - Creative &amp; Developer Suite"
+        Icon="/Assets/app-logo.ico"
         Width="1280" Height="820"
         MinWidth="960" MinHeight="600"
         WindowStartupLocation="CenterScreen"
