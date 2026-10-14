@@ -1,0 +1,106 @@
+name: Publish FryWorld.Sdk to NuGet
+
+on:
+  push:
+    tags:
+      - 'sdk-v*'
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package release version (e.g. 1.0.0; leave blank to infer from tag)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Dry run (build, test, and pack only; do not publish to NuGet.org)'
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  group: publish-sdk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write  # Required for GitHub Actions OIDC federation with NuGet.org
+  contents: read   # Required to check out repository code
+
+jobs:
+  build-test-publish:
+    name: Build, Test & Publish FryWorld.Sdk
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Determine Package Version
+        id: version
+        shell: bash
+        run: |
+          RAW_VER=""
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            RAW_VER="${{ github.event.inputs.version }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            RAW_VER="${GITHUB_REF_NAME}"
+          else
+            # Extract default version from csproj or fallback
+            CSPROJ_VER=$(sed -n 's/.*<Version Condition=.*>\([^<]*\)<\/Version>.*/\1/p' src/FryWorld.Sdk/FryWorld.Sdk.csproj | head -n 1)
+            RAW_VER="${CSPROJ_VER:-1.0.0}-dev"
+          fi
+
+          # Strip leading prefixes: 'sdk-v', 'sdk-', 'v', or 'V'
+          CLEAN_VER=$(echo "$RAW_VER" | sed -E 's/^(sdk-v?|v)//I')
+          echo "version=${CLEAN_VER}" >> "$GITHUB_OUTPUT"
+          echo "Resolved NuGet Package Version: ${CLEAN_VER}"
+
+      - name: Build Core SDK
+        run: >
+          dotnet build src/FryWorld.Sdk/FryWorld.Sdk.csproj
+          -c Release
+          -p:PackageVersion=${{ steps.version.outputs.version }}
+          -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Run Unit & Integration Tests
+        run: >
+          dotnet test tests/FryWorld.Sdk.Tests/FryWorld.Sdk.Tests.csproj
+          -c Release
+          --verbosity normal
+
+      - name: Pack NuGet Package
+        run: >
+          dotnet pack src/FryWorld.Sdk/FryWorld.Sdk.csproj
+          -c Release
+          -p:PackageVersion=${{ steps.version.outputs.version }}
+          -p:Version=${{ steps.version.outputs.version }}
+          --output ./artifacts
+
+      - name: Upload NuGet Package Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fryworld-sdk-packages
+          path: |
+            ./artifacts/*.nupkg
+            ./artifacts/*.snupkg
+          if-no-files-found: error
+
+      - name: NuGet login (OIDC exchange for temporary API key)
+        if: ${{ !inputs.dry_run }}
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ secrets.NUGET_USER || vars.NUGET_USER || 'codefrydev' }}
+
+      - name: Publish Package to NuGet.org
+        if: ${{ !inputs.dry_run }}
+        run: >
+          dotnet nuget push "./artifacts/*.nupkg"
+          --source "https://api.nuget.org/v3/index.json"
+          --api-key "${{ steps.login.outputs.nuget-api-key || secrets.NUGET_API_KEY }}"
+          --skip-duplicate
