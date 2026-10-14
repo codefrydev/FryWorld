@@ -66,6 +66,30 @@
     <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceBrush}" />
   </Style>
 
+  <!-- Navigation Rail Item Button -->
+  <Style Selector="Button.nav-rail-btn">
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceVariantBrush}" />
+    <Setter Property="Padding" Value="8" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.nav-rail-btn:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerHighBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceBrush}" />
+  </Style>
+  <Style Selector="Button.nav-rail-btn.selected">
+    <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerHighestBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource M3PrimaryBrush}" />
+  </Style>
+  <Style Selector="Button.nav-rail-btn.selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerHighestBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource M3PrimaryBrush}" />
+  </Style>
+
   <!-- ========================================== -->
   <!-- 2. SEARCH AND INPUT STYLES                 -->
   <!-- ========================================== -->
@@ -123,6 +147,24 @@
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="8" />
     <Setter Property="Padding" Value="4" />
+  </Style>
+
+  <!-- View Mode Capsule Toggle Button (GRID / TABLE) -->
+  <Style Selector="Button.toggle-capsule-btn">
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="12,4" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceVariantBrush}" />
+  </Style>
+  <Style Selector="Button.toggle-capsule-btn.active">
+    <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerHighestBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceBrush}" />
+  </Style>
+  <Style Selector="Button.toggle-capsule-btn.active /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource M3SurfaceContainerHighestBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource M3OnSurfaceBrush}" />
   </Style>
 
 </Styles>

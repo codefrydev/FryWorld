@@ -39,15 +39,15 @@
         <ItemsControl Grid.Row="1" ItemsSource="{Binding NavigationItems}">
           <ItemsControl.ItemTemplate>
             <DataTemplate DataType="vm:NavigationRailItem">
-              <Button Classes="icon-btn"
+              <Button Classes="nav-rail-btn"
+                      Classes.selected="{Binding IsSelected}"
                       Width="52" Height="52"
                       Margin="0,0,0,10"
                       HorizontalAlignment="Center"
                       ToolTip.Tip="{Binding Title}"
                       Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).SelectNavigationItem}"
                       CommandParameter="{Binding}">
-                <material:MaterialIcon Kind="{Binding IconKind}" Width="24" Height="24"
-                                      Foreground="{Binding IsSelected, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                <material:MaterialIcon Kind="{Binding IconKind}" Width="24" Height="24" />
               </Button>
             </DataTemplate>
           </ItemsControl.ItemTemplate>

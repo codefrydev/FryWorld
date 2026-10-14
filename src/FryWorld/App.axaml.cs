@@ -22,6 +22,23 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+
+        Avalonia.Threading.Dispatcher.UIThread.UnhandledException += (s, e) =>
+        {
+            if (e.Exception is NullReferenceException nre && nre.StackTrace?.Contains("AvaloniaEdit.CodeCompletion") == true)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Exception is System.Reflection.TargetInvocationException tie &&
+                tie.InnerException is NullReferenceException inre &&
+                inre.StackTrace?.Contains("AvaloniaEdit.CodeCompletion") == true)
+            {
+                e.Handled = true;
+                return;
+            }
+        };
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -47,7 +64,7 @@ public partial class App : Application
     private static void ConfigureServices(IServiceCollection services)
     {
         // Core Microkernel Host
-        services.AddSingleton<PluginHost>();
+        services.AddSingleton<PluginHost>(sp => new PluginHost(new FryPluginContext(fallbackServiceProvider: sp)));
 
         // Foundation Services
         services.AddSingleton<IThemeService, ThemeService>();

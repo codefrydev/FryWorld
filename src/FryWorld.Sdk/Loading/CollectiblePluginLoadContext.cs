@@ -21,7 +21,7 @@ public sealed class CollectiblePluginLoadContext : AssemblyLoadContext
         {
             "Avalonia", "Avalonia.Base", "Avalonia.Controls", "Avalonia.Desktop",
             "Avalonia.Markup", "Avalonia.Markup.Xaml", "Avalonia.Skia",
-            "CommunityToolkit.Mvvm", "Material.Icons.Avalonia",
+            "CommunityToolkit.Mvvm", "Material.Icons", "Material.Icons.Avalonia",
             "Microsoft.Extensions.DependencyInjection",
             "Microsoft.Extensions.DependencyInjection.Abstractions",
             "Microsoft.Extensions.Logging.Abstractions"
@@ -43,7 +43,7 @@ public sealed class CollectiblePluginLoadContext : AssemblyLoadContext
         // to preserve IFryPlugin type identity across load context boundaries.
         if (assemblyName.Name != null && HostContractAssemblies.Contains(assemblyName.Name))
         {
-            var hostAssembly = ResolveFromDefaultContext(assemblyName.Name);
+            var hostAssembly = ResolveFromDefaultContext(assemblyName);
             if (hostAssembly != null) return hostAssembly;
         }
 
@@ -67,16 +67,26 @@ public sealed class CollectiblePluginLoadContext : AssemblyLoadContext
         // Stage 3 — Shared host frameworks (Avalonia, MVVM toolkit)
         if (assemblyName.Name != null && HostSharedFrameworkAssemblies.Contains(assemblyName.Name))
         {
-            var shared = ResolveFromDefaultContext(assemblyName.Name);
+            var shared = ResolveFromDefaultContext(assemblyName);
             if (shared != null) return shared;
         }
 
         return null;
     }
 
-    private static Assembly? ResolveFromDefaultContext(string simpleName)
+    private static Assembly? ResolveFromDefaultContext(AssemblyName assemblyName)
     {
-        return Default.Assemblies.FirstOrDefault(a =>
-            string.Equals(a.GetName().Name, simpleName, StringComparison.OrdinalIgnoreCase));
+        var loaded = Default.Assemblies.FirstOrDefault(a =>
+            string.Equals(a.GetName().Name, assemblyName.Name, StringComparison.OrdinalIgnoreCase));
+        if (loaded != null) return loaded;
+
+        try
+        {
+            return Default.LoadFromAssemblyName(assemblyName);
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

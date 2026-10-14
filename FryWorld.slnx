@@ -5,5 +5,9 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FryWorld.Sdk.Tests/FryWorld.Sdk.Tests.csproj" />
+    <Project Path="tests/FryWorld.Tests/FryWorld.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/UiSnapshots/UiSnapshots.csproj" />
   </Folder>
 </Solution>

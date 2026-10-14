@@ -32,7 +32,12 @@ public partial class LauncherHomeViewModel : ViewModelBase
     private readonly List<LauncherAppCardViewModel> _allApps = new();
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGridMode))]
+    [NotifyPropertyChangedFor(nameof(IsTableMode))]
     private LauncherViewMode _viewMode = LauncherViewMode.Grid;
+
+    public bool IsGridMode => ViewMode == LauncherViewMode.Grid;
+    public bool IsTableMode => ViewMode == LauncherViewMode.Table;
 
     [ObservableProperty]
     private LauncherFilterTab _selectedFilter = LauncherFilterTab.All;
@@ -286,7 +291,8 @@ public partial class LauncherHomeViewModel : ViewModelBase
             filtered = filtered.Where(a =>
                 a.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                 a.Description.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                a.Category.Contains(query, StringComparison.OrdinalIgnoreCase));
+                a.Category.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                a.Id.Contains(query, StringComparison.OrdinalIgnoreCase));
         }
 
         // 3. Sorting

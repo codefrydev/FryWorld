@@ -25,6 +25,7 @@
     <PackageReference Include="Avalonia.Skia" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Material.Icons.Avalonia" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
   </ItemGroup>

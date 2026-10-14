@@ -34,8 +34,11 @@
 # Build the entire solution (Warning-free required)
 dotnet build FryWorld.slnx
 
-# Run all automated tests
+# Run all automated tests (Sdk unit tests + Headless UI integration tests)
 dotnet test FryWorld.slnx
+
+# Run Headless UI Visual Snapshots (render real views & dialogs off-screen)
+dotnet run --project tools/UiSnapshots -- all
 
 # Run the FryWorld Desktop Host
 dotnet run --project src/FryWorld/FryWorld.csproj

@@ -4,6 +4,8 @@
 [Aa]rtifacts/
 dist/
 publish/
+test-artifacts/
+tools/UiSnapshots/out/
 
 ## [Visual Studio / Rider / IDE]
 .vs/

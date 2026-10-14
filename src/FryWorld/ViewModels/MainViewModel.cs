@@ -101,6 +101,8 @@ public partial class MainViewModel : ViewModelBase
         CommandPaletteVm.RequestClose += () => IsCommandPaletteOpen = false;
 
         InitializeNavigation();
+        OnDynamicNavigationItemsChanged();
+        OnDynamicOverlaysChanged();
 
         // Listen for dynamic capability registrations from plugins
         _host.Context.NavigationItemsChanged += OnDynamicNavigationItemsChanged;
@@ -137,44 +139,161 @@ public partial class MainViewModel : ViewModelBase
 
     private void OnDynamicNavigationItemsChanged()
     {
-        var registered = _host.Context.GetRegisteredNavigationItems();
-        var existingDynamic = NavigationItems.Where(n => n.Id.StartsWith("dyn.")).ToList();
-        foreach (var item in existingDynamic) NavigationItems.Remove(item);
-
-        foreach (var nav in registered)
+        void Update()
         {
-            NavigationItems.Add(new NavigationRailItem
+            var registered = _host.Context.GetRegisteredNavigationItems();
+            var existingDynamic = NavigationItems.Where(n => n.Id.StartsWith("dyn.")).ToList();
+            foreach (var item in existingDynamic) NavigationItems.Remove(item);
+
+            foreach (var nav in registered)
             {
-                Id = $"dyn.{nav.Id}",
-                Title = nav.Title,
-                IconKind = nav.IconKind ?? "Application",
-                ViewFactory = nav.ViewFactory
-            });
+                NavigationItems.Add(new NavigationRailItem
+                {
+                    Id = $"dyn.{nav.Id}",
+                    Title = nav.Title,
+                    IconKind = nav.IconKind ?? "Application",
+                    ViewFactory = nav.ViewFactory
+                });
+            }
+        }
+
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            Update();
+        }
+        else
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(Update);
         }
     }
 
     private void OnDynamicOverlaysChanged()
     {
-        var registered = _host.Context.GetRegisteredOverlays();
-        foreach (var overlay in registered)
+        void Update()
         {
-            if (overlay.AutoOpenOnMount && !ActiveOverlays.Any(o => o.Descriptor.Id == overlay.Id))
+            var registered = _host.Context.GetRegisteredOverlays();
+            foreach (var overlay in registered)
             {
-                ActiveOverlays.Add(new ActiveOverlayViewModel(overlay));
+                if (overlay.AutoOpenOnMount && !ActiveOverlays.Any(o => o.Descriptor.Id == overlay.Id))
+                {
+                    ActiveOverlays.Add(new ActiveOverlayViewModel(overlay));
+                }
             }
+        }
+
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            Update();
+        }
+        else
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(Update);
         }
     }
 
-    public void NavigateToPlugin(string pluginId)
+    public async void NavigateToPlugin(string pluginId)
     {
-        var dynItem = NavigationItems.FirstOrDefault(n => n.Id == $"dyn.{pluginId}");
+        if (string.IsNullOrWhiteSpace(pluginId)) return;
+
+        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => NavigateToPlugin(pluginId));
+            return;
+        }
+
+        // 1. Check if already in NavigationItems
+        var dynItem = NavigationItems.FirstOrDefault(n =>
+            n.Id == $"dyn.{pluginId}" ||
+            n.Id.Equals(pluginId, StringComparison.OrdinalIgnoreCase) ||
+            n.Id.EndsWith(pluginId, StringComparison.OrdinalIgnoreCase));
+
         if (dynItem != null)
         {
             SelectedNavItem = dynItem;
             return;
         }
 
-        // Check if it's an overlay
+        // 2. Check if registered in context but not yet synced
+        var registeredNav = _host.Context.GetRegisteredNavigationItems().FirstOrDefault(n =>
+            n.Id.Equals(pluginId, StringComparison.OrdinalIgnoreCase) ||
+            n.Id.EndsWith(pluginId, StringComparison.OrdinalIgnoreCase));
+
+        if (registeredNav != null)
+        {
+            OnDynamicNavigationItemsChanged();
+            dynItem = NavigationItems.FirstOrDefault(n =>
+                n.Id == $"dyn.{registeredNav.Id}" ||
+                n.Id.Equals(registeredNav.Id, StringComparison.OrdinalIgnoreCase));
+
+            if (dynItem != null)
+            {
+                SelectedNavItem = dynItem;
+                return;
+            }
+        }
+
+        // 3. Check if plugin is registered in host but inactive
+        var registeredPlugin = _host.GetRegisteredPlugins().FirstOrDefault(p =>
+            string.Equals(p.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+
+        if (registeredPlugin != null)
+        {
+            try
+            {
+                await _host.MountPluginAsync(registeredPlugin);
+                OnDynamicNavigationItemsChanged();
+                dynItem = NavigationItems.FirstOrDefault(n =>
+                    n.Id == $"dyn.{registeredPlugin.Id}" ||
+                    n.Id.Equals(registeredPlugin.Id, StringComparison.OrdinalIgnoreCase));
+
+                if (dynItem != null)
+                {
+                    SelectedNavItem = dynItem;
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogService.Instance.LogError("MainViewModel", $"Failed to mount plugin '{pluginId}' during launch", ex);
+            }
+        }
+
+        // 4. Check if plugin is installed in plugins directory
+        var pluginsDir = FryWorldPaths.PluginsDirectory;
+        var pluginFolder = System.IO.Path.Combine(pluginsDir, pluginId);
+        if (System.IO.Directory.Exists(pluginFolder))
+        {
+            try
+            {
+                var entryDll = FryWorld.Sdk.Loading.PluginAssemblyLoader.ResolvePluginDirectoryEntryDll(pluginFolder);
+                if (entryDll != null)
+                {
+                    var package = FryWorld.Sdk.Loading.PluginAssemblyLoader.LoadAssembly(entryDll);
+                    foreach (var p in package.Plugins)
+                    {
+                        try { _host.RegisterPlugin(p); } catch { }
+                        await _host.MountPluginAsync(p);
+                    }
+                    OnDynamicNavigationItemsChanged();
+                    dynItem = NavigationItems.FirstOrDefault(n =>
+                        n.Id == $"dyn.{pluginId}" ||
+                        n.Id.Equals(pluginId, StringComparison.OrdinalIgnoreCase) ||
+                        n.Id.EndsWith(pluginId, StringComparison.OrdinalIgnoreCase));
+
+                    if (dynItem != null)
+                    {
+                        SelectedNavItem = dynItem;
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogService.Instance.LogError("MainViewModel", $"Failed to load and launch plugin '{pluginId}' from disk", ex);
+            }
+        }
+
+        // 5. Check if it's an overlay
         var overlay = _host.Context.GetRegisteredOverlays().FirstOrDefault(o => o.Id == pluginId);
         if (overlay != null)
         {
@@ -228,12 +347,20 @@ public partial class MainViewModel : ViewModelBase
 
         if (value.ViewFactory != null)
         {
-            if (!_viewCache.TryGetValue(value.Id, out var cachedView))
+            try
             {
-                cachedView = value.ViewFactory();
-                _viewCache[value.Id] = cachedView;
+                if (!_viewCache.TryGetValue(value.Id, out var cachedView))
+                {
+                    cachedView = value.ViewFactory();
+                    _viewCache[value.Id] = cachedView;
+                }
+                CurrentView = cachedView;
             }
-            CurrentView = cachedView;
+            catch (Exception ex)
+            {
+                AppLogService.Instance.LogError("MainViewModel", $"Failed to instantiate view for navigation item '{value.Id}'", ex);
+                CurrentView = null;
+            }
         }
         else
         {
@@ -243,8 +370,20 @@ public partial class MainViewModel : ViewModelBase
 
     private void UpdateMetrics()
     {
-        LoadedPluginCount = _host.GetRegisteredPlugins().Count;
-        var bytes = GC.GetTotalMemory(false);
-        MemoryUsageText = $"{bytes / (1024 * 1024)} MB";
+        void Update()
+        {
+            LoadedPluginCount = _host.GetRegisteredPlugins().Count;
+            var bytes = GC.GetTotalMemory(false);
+            MemoryUsageText = $"{bytes / (1024 * 1024)} MB";
+        }
+
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            Update();
+        }
+        else
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(Update);
+        }
     }
 }

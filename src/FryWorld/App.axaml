@@ -14,6 +14,7 @@
 
   <Application.Styles>
     <FluentTheme />
+    <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
     <material:MaterialIconStyles />
     <StyleInclude Source="/Styles/Material3ExpressiveStyles.axaml" />
   </Application.Styles>

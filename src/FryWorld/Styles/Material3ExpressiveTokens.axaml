@@ -11,56 +11,7 @@
   <CornerRadius x:Key="M3ShapeCornerSmall">8</CornerRadius>
 
   <!-- ========================================== -->
-  <!-- 2. DARK THEME COLOR PALETTE (DEFAULT)      -->
-  <!-- ========================================== -->
-  <Color x:Key="M3SurfaceColor">#0D1117</Color>
-  <Color x:Key="M3SurfaceContainerLowestColor">#080C11</Color>
-  <Color x:Key="M3SurfaceContainerLowColor">#121721</Color>
-  <Color x:Key="M3SurfaceContainerColor">#161D2A</Color>
-  <Color x:Key="M3SurfaceContainerHighColor">#1C2536</Color>
-  <Color x:Key="M3SurfaceContainerHighestColor">#253046</Color>
-
-  <Color x:Key="M3PrimaryColor">#38BDF8</Color>
-  <Color x:Key="M3PrimaryContainerColor">#0369A1</Color>
-  <Color x:Key="M3OnPrimaryColor">#082F49</Color>
-  <Color x:Key="M3OnPrimaryContainerColor">#E0F2FE</Color>
-
-  <Color x:Key="M3SecondaryColor">#A855F7</Color>
-  <Color x:Key="M3SecondaryContainerColor">#581C87</Color>
-  <Color x:Key="M3OnSecondaryColor">#3B0764</Color>
-
-  <Color x:Key="M3OutlineColor">#2D3748</Color>
-  <Color x:Key="M3OutlineVariantColor">#1E293B</Color>
-
-  <Color x:Key="M3OnSurfaceColor">#F8FAFC</Color>
-  <Color x:Key="M3OnSurfaceVariantColor">#94A3B8</Color>
-  <Color x:Key="M3ErrorColor">#EF4444</Color>
-
-  <!-- Dynamic Brushes -->
-  <SolidColorBrush x:Key="M3SurfaceBrush" Color="{StaticResource M3SurfaceColor}" />
-  <SolidColorBrush x:Key="M3SurfaceContainerLowestBrush" Color="{StaticResource M3SurfaceContainerLowestColor}" />
-  <SolidColorBrush x:Key="M3SurfaceContainerLowBrush" Color="{StaticResource M3SurfaceContainerLowColor}" />
-  <SolidColorBrush x:Key="M3SurfaceContainerBrush" Color="{StaticResource M3SurfaceContainerColor}" />
-  <SolidColorBrush x:Key="M3SurfaceContainerHighBrush" Color="{StaticResource M3SurfaceContainerHighColor}" />
-  <SolidColorBrush x:Key="M3SurfaceContainerHighestBrush" Color="{StaticResource M3SurfaceContainerHighestColor}" />
-
-  <SolidColorBrush x:Key="M3PrimaryBrush" Color="{StaticResource M3PrimaryColor}" />
-  <SolidColorBrush x:Key="M3PrimaryContainerBrush" Color="{StaticResource M3PrimaryContainerColor}" />
-  <SolidColorBrush x:Key="M3OnPrimaryBrush" Color="{StaticResource M3OnPrimaryColor}" />
-  <SolidColorBrush x:Key="M3OnPrimaryContainerBrush" Color="{StaticResource M3OnPrimaryContainerColor}" />
-
-  <SolidColorBrush x:Key="M3SecondaryBrush" Color="{StaticResource M3SecondaryColor}" />
-  <SolidColorBrush x:Key="M3SecondaryContainerBrush" Color="{StaticResource M3SecondaryContainerColor}" />
-
-  <SolidColorBrush x:Key="M3OutlineBrush" Color="{StaticResource M3OutlineColor}" />
-  <SolidColorBrush x:Key="M3OutlineVariantBrush" Color="{StaticResource M3OutlineVariantColor}" />
-
-  <SolidColorBrush x:Key="M3OnSurfaceBrush" Color="{StaticResource M3OnSurfaceColor}" />
-  <SolidColorBrush x:Key="M3OnSurfaceVariantBrush" Color="{StaticResource M3OnSurfaceVariantColor}" />
-  <SolidColorBrush x:Key="M3ErrorBrush" Color="{StaticResource M3ErrorColor}" />
-
-  <!-- ========================================== -->
-  <!-- 3. LAUNCHER INDEXED PALETTE                -->
+  <!-- 2. LAUNCHER INDEXED PALETTE (SHARED)       -->
   <!-- ========================================== -->
   <SolidColorBrush x:Key="CardPillBlue" Color="#2563EB" />
   <SolidColorBrush x:Key="CardPillRed" Color="#DC2626" />
@@ -74,5 +25,112 @@
   <SolidColorBrush x:Key="CardPillEmerald" Color="#10B981" />
   <SolidColorBrush x:Key="CardPillTeal" Color="#0D9488" />
   <SolidColorBrush x:Key="CardPillIndigo" Color="#4F46E5" />
+
+  <!-- ========================================== -->
+  <!-- 3. THEME-AWARE COLOR DICTIONARIES          -->
+  <!-- ========================================== -->
+  <ResourceDictionary.ThemeDictionaries>
+
+    <!-- DARK THEME (DEFAULT) -->
+    <ResourceDictionary x:Key="Default">
+      <Color x:Key="M3SurfaceColor">#0D1117</Color>
+      <Color x:Key="M3SurfaceContainerLowestColor">#080C11</Color>
+      <Color x:Key="M3SurfaceContainerLowColor">#121721</Color>
+      <Color x:Key="M3SurfaceContainerColor">#161D2A</Color>
+      <Color x:Key="M3SurfaceContainerHighColor">#1C2536</Color>
+      <Color x:Key="M3SurfaceContainerHighestColor">#253046</Color>
+
+      <Color x:Key="M3PrimaryColor">#38BDF8</Color>
+      <Color x:Key="M3PrimaryContainerColor">#0369A1</Color>
+      <Color x:Key="M3OnPrimaryColor">#082F49</Color>
+      <Color x:Key="M3OnPrimaryContainerColor">#E0F2FE</Color>
+
+      <Color x:Key="M3SecondaryColor">#A855F7</Color>
+      <Color x:Key="M3SecondaryContainerColor">#581C87</Color>
+      <Color x:Key="M3OnSecondaryColor">#3B0764</Color>
+
+      <Color x:Key="M3OutlineColor">#2D3748</Color>
+      <Color x:Key="M3OutlineVariantColor">#1E293B</Color>
+
+      <Color x:Key="M3OnSurfaceColor">#F8FAFC</Color>
+      <Color x:Key="M3OnSurfaceVariantColor">#94A3B8</Color>
+      <Color x:Key="M3ErrorColor">#EF4444</Color>
+
+      <!-- Brushes -->
+      <SolidColorBrush x:Key="M3SurfaceBrush" Color="{StaticResource M3SurfaceColor}" />
+      <SolidColorBrush x:Key="M3SurfaceContainerLowestBrush" Color="{StaticResource M3SurfaceContainerLowestColor}" />
+      <SolidColorBrush x:Key="M3SurfaceContainerLowBrush" Color="{StaticResource M3SurfaceContainerLowColor}" />
+      <SolidColorBrush x:Key="M3SurfaceContainerBrush" Color="{StaticResource M3SurfaceContainerColor}" />
+      <SolidColorBrush x:Key="M3SurfaceContainerHighBrush" Color="{StaticResource M3SurfaceContainerHighColor}" />
+      <SolidColorBrush x:Key="M3SurfaceContainerHighestBrush" Color="{StaticResource M3SurfaceContainerHighestColor}" />
+
+      <SolidColorBrush x:Key="M3PrimaryBrush" Color="{StaticResource M3PrimaryColor}" />
+      <SolidColorBrush x:Key="M3PrimaryContainerBrush" Color="{StaticResource M3PrimaryContainerColor}" />
+      <SolidColorBrush x:Key="M3OnPrimaryBrush" Color="{StaticResource M3OnPrimaryColor}" />
+      <SolidColorBrush x:Key="M3OnPrimaryContainerBrush" Color="{StaticResource M3OnPrimaryContainerColor}" />
+
+      <SolidColorBrush x:Key="M3SecondaryBrush" Color="{StaticResource M3SecondaryColor}" />
+      <SolidColorBrush x:Key="M3SecondaryContainerBrush" Color="{StaticResource M3SecondaryContainerColor}" />
+      <SolidColorBrush x:Key="M3OnSecondaryBrush" Color="{StaticResource M3OnSecondaryColor}" />
+
+      <SolidColorBrush x:Key="M3OutlineBrush" Color="{StaticResource M3OutlineColor}" />
+      <SolidColorBrush x:Key="M3OutlineVariantBrush" Color="{StaticResource M3OutlineVariantColor}" />
+
+      <SolidColorBrush x:Key="M3OnSurfaceBrush" Color="{StaticResource M3OnSurfaceColor}" />
+      <SolidColorBrush x:Key="M3OnSurfaceVariantBrush" Color="{StaticResource M3OnSurfaceVariantColor}" />
+      <SolidColorBrush x:Key="M3ErrorBrush" Color="{StaticResource M3ErrorColor}" />
+    </ResourceDictionary>
+
+    <!-- LIGHT THEME -->
+    <ResourceDictionary x:Key="Light">
+      <Color x:Key="M3SurfaceColor">#F8FAFD</Color>
+      <Color x:Key="M3SurfaceContainerLowestColor">#FFFFFF</Color>
+      <Color x:Key="M3SurfaceContainerLowColor">#F1F5F9</Color>
+      <Color x:Key="M3SurfaceContainerColor">#E9EEF6</Color>
+      <Color x:Key="M3SurfaceContainerHighColor">#E1E8F2</Color>
+      <Color x:Key="M3SurfaceContainerHighestColor">#D7E1EE</Color>
+
+      <Color x:Key="M3PrimaryColor">#0284C7</Color>
+      <Color x:Key="M3PrimaryContainerColor">#E0F2FE</Color>
+      <Color x:Key="M3OnPrimaryColor">#FFFFFF</Color>
+      <Color x:Key="M3OnPrimaryContainerColor">#0369A1</Color>
+
+      <Color x:Key="M3SecondaryColor">#9333EA</Color>
+      <Color x:Key="M3SecondaryContainerColor">#F3E8FF</Color>
+      <Color x:Key="M3OnSecondaryColor">#FFFFFF</Color>
+
+      <Color x:Key="M3OutlineColor">#CBD5E1</Color>
+      <Color x:Key="M3OutlineVariantColor">#E2E8F0</Color>
+
+      <Color x:Key="M3OnSurfaceColor">#0F172A</Color>
+      <Color x:Key="M3OnSurfaceVariantColor">#475569</Color>
+      <Color x:Key="M3ErrorColor">#DC2626</Color>
+
+      <!-- Brushes -->
+      <SolidColorBrush x:Key="M3SurfaceBrush" Color="{StaticResource M3SurfaceColor}" />
+      <SolidColorBrush x:Key="M3SurfaceContainerLowestBrush" Color="{StaticResource M3SurfaceContainerLowestColor}" />
+      <SolidColorBrush x:Key="M3SurfaceContainerLowBrush" Color="{StaticResource M3SurfaceContainerLowColor}" />
+      <SolidColorBrush x:Key="M3SurfaceContainerBrush" Color="{StaticResource M3SurfaceContainerColor}" />
+      <SolidColorBrush x:Key="M3SurfaceContainerHighBrush" Color="{StaticResource M3SurfaceContainerHighColor}" />
+      <SolidColorBrush x:Key="M3SurfaceContainerHighestBrush" Color="{StaticResource M3SurfaceContainerHighestColor}" />
+
+      <SolidColorBrush x:Key="M3PrimaryBrush" Color="{StaticResource M3PrimaryColor}" />
+      <SolidColorBrush x:Key="M3PrimaryContainerBrush" Color="{StaticResource M3PrimaryContainerColor}" />
+      <SolidColorBrush x:Key="M3OnPrimaryBrush" Color="{StaticResource M3OnPrimaryColor}" />
+      <SolidColorBrush x:Key="M3OnPrimaryContainerBrush" Color="{StaticResource M3OnPrimaryContainerColor}" />
+
+      <SolidColorBrush x:Key="M3SecondaryBrush" Color="{StaticResource M3SecondaryColor}" />
+      <SolidColorBrush x:Key="M3SecondaryContainerBrush" Color="{StaticResource M3SecondaryContainerColor}" />
+      <SolidColorBrush x:Key="M3OnSecondaryBrush" Color="{StaticResource M3OnSecondaryColor}" />
+
+      <SolidColorBrush x:Key="M3OutlineBrush" Color="{StaticResource M3OutlineColor}" />
+      <SolidColorBrush x:Key="M3OutlineVariantBrush" Color="{StaticResource M3OutlineVariantColor}" />
+
+      <SolidColorBrush x:Key="M3OnSurfaceBrush" Color="{StaticResource M3OnSurfaceColor}" />
+      <SolidColorBrush x:Key="M3OnSurfaceVariantBrush" Color="{StaticResource M3OnSurfaceVariantColor}" />
+      <SolidColorBrush x:Key="M3ErrorBrush" Color="{StaticResource M3ErrorColor}" />
+    </ResourceDictionary>
+
+  </ResourceDictionary.ThemeDictionaries>
 
 </ResourceDictionary>
