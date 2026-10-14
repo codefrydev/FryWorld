@@ -94,13 +94,21 @@ jobs:
         if: ${{ !inputs.dry_run }}
         uses: NuGet/login@v1
         id: login
+        continue-on-error: true
         with:
-          user: ${{ secrets.NUGET_USER || vars.NUGET_USER || 'codefrydev' }}
+          user: ${{ secrets.NUGET_USER || vars.NUGET_USER || 'prashantunity' }}
 
       - name: Publish Package to NuGet.org
         if: ${{ !inputs.dry_run }}
-        run: >
-          dotnet nuget push "./artifacts/*.nupkg"
-          --source "https://api.nuget.org/v3/index.json"
-          --api-key "${{ steps.login.outputs.nuget-api-key || secrets.NUGET_API_KEY }}"
-          --skip-duplicate
+        shell: bash
+        run: |
+          API_KEY="${{ steps.login.outputs.nuget-api-key || steps.login.outputs.NUGET_API_KEY || secrets.NUGET_API_KEY }}"
+          if [ -z "$API_KEY" ]; then
+            echo "Error: Neither OIDC token nor NUGET_API_KEY secret is available."
+            echo "Please configure either GitHub Actions OIDC on NuGet.org or set the NUGET_API_KEY repository secret."
+            exit 1
+          fi
+          dotnet nuget push "./artifacts/*.nupkg" \
+            --source "https://api.nuget.org/v3/index.json" \
+            --api-key "$API_KEY" \
+            --skip-duplicate
