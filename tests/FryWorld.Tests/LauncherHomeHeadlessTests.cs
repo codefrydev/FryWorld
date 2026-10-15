@@ -1,7 +1,11 @@
 using System;
+using System.IO;
 using System.Linq;
 using Avalonia.Controls;
 using Microsoft.Extensions.DependencyInjection;
+using FryWorld.Sdk.Descriptors;
+using FryWorld.Sdk.Hosting;
+using FryWorld.Sdk.Plugins;
 using FryWorld.Tests.TestSupport;
 using FryWorld.ViewModels;
 using FryWorld.Views;
@@ -119,15 +123,38 @@ public class LauncherHomeHeadlessTests
         TestHeadlessSession.Run(() =>
         {
             var mainVm = App.Services.GetRequiredService<MainViewModel>();
+            var host = App.Services.GetRequiredService<PluginHost>();
             var frySharpCard = mainVm.LauncherHomeVm.FilteredApps.FirstOrDefault(a => a.Id == "com.fryworld.csharpstudio");
             Assert.NotNull(frySharpCard);
-            
+
+            var hasFrySharp = host.GetRegisteredPlugins().Any(p => p.Id == "com.fryworld.csharpstudio")
+                || Directory.Exists(Path.Combine(FryWorldPaths.PluginsDirectory, "com.fryworld.csharpstudio"));
+
+            if (!hasFrySharp)
+            {
+                // In clean CI environments where FrySharp is not pre-installed in AppData,
+                // register an in-situ navigation item and ensure the card is in Installed status.
+                host.Context.RegisterNavigationItem(new NavigationItemDescriptor
+                {
+                    Id = "com.fryworld.csharpstudio",
+                    Title = "FrySharp",
+                    ViewFactory = () => new Border { Child = new TextBlock { Text = "FrySharp Studio View" } }
+                });
+                frySharpCard.Status = LauncherAppStatus.Installed;
+            }
+
             frySharpCard.ExecutePrimaryActionCommand.Execute(null);
+            TestHeadlessSession.Settle(4);
 
             Assert.False(mainVm.IsLauncherActive);
             Assert.NotNull(mainVm.SelectedNavItem);
             Assert.Contains("com.fryworld.csharpstudio", mainVm.SelectedNavItem.Id);
             Assert.NotNull(mainVm.CurrentView);
+
+            // Cleanup: restore launcher state
+            var launcherItem = mainVm.NavigationItems.First(n => n.Id == "nav.launcher");
+            mainVm.SelectNavigationItem(launcherItem);
+            TestHeadlessSession.Settle(2);
         });
     }
 
