@@ -2,7 +2,19 @@
 
 All notable changes to FryWorld.Sdk. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows [Semantic Versioning](https://semver.org/) under the [compatibility policy](../../docs/sdk/compatibility.md): every 0.x release is additive, so plugins built against 0.0.2 keep compiling and loading.
 
-## [0.1.0] - Unreleased
+## [0.2.0] - 2026-10-15
+
+### Added
+
+- **Perceptual Color Science Engine:** `FryWorld.Sdk.Theming.ColorMath` featuring Material 3 HCT (Hue, Chroma, Tone) CAM16 appearance modeling, full Oklab and OKLCH polar color spaces with gamut mapping, APCA 0.98G contrast solver, WCAG 2.1 AA/AAA contrast solver, and Brettel/Viénot color blindness simulator (`Deuteranopia`, `Protanopia`, `Tritanopia`).
+- **11-Stop Tonal Scale Engine:** `TonalScaleEngine` synthesizing standard 11-stop tonal ramps (`50`, `100`, `200`, `300`, `400`, `500`, `600`, `700`, `800`, `900`, `950`) across all semantic roles (`Primary`, `Secondary`, `Tertiary`, `Neutral`, `NeutralVariant`, `Success`, `Warning`, `Error`, `Info`).
+- **Procedural Color Harmony Studio:** `HarmonicColorGenerator` synthesizing mathematically balanced palettes using standard wheel angles (`Analogous`, `Complementary`, `SplitComplementary`, `Triadic`, `Tetradic`, `Monochromatic`) and `ApplyRandomHarmonicTheme`.
+- **Universal Theming Contract:** `IThemeManager : IThemeService` providing `ActiveThemeId`, `ActiveTheme`, `GetAvailableThemes()`, `ApplyTheme(string)`, `RegisterTheme(ThemeDefinition)`, `ApplyHarmonicTheme(float, ColorHarmonyMode, bool)`, and `ResetToDefaults()`.
+- **Extensible Token Architecture:** `IThemeTokenContributor` allows plugins to contribute custom domain-specific tokens (e.g. `DeveloperStudioTokenContributor` for `Ds...` editor syntax/chrome tokens, `PhotoStudioTokenContributor` for `Ps...` photo studio tokens) without bloating the host runtime dictionary.
+- **Dynamic Resource Root Tracking:** `IThemeManager.TrackResourceRoot(StyledElement)` synchronizes dynamic theme layers directly into window resource dictionaries for immediate single-pass recoloring without resource shadowing.
+- **Curated Theme Presets:** `BuiltInThemes` shipping `DarkPlus`, `LightPlus`, `Dracula Pro`, `Cyberpunk Neon`, `Monokai Classic`, `One Dark Pro`, and `Nord Arctic`.
+
+## [0.1.0] - 2026-10-15
 
 ### Added
 
