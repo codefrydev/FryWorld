@@ -73,6 +73,18 @@ public sealed class CollectiblePluginLoadContext : AssemblyLoadContext
         return null;
     }
 
+    /// <summary>Resolves an unmanaged native library for the plugin (e.g. miniaudio for SoundFlow).</summary>
+    protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
+    {
+        string? libraryPath = _resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
+        if (libraryPath != null && File.Exists(libraryPath))
+        {
+            return LoadUnmanagedDllFromPath(libraryPath);
+        }
+
+        return base.LoadUnmanagedDll(unmanagedDllName);
+    }
+
     // Host assemblies already resolved from the default context, by simple name. The default context never
     // unloads, so an entry stays valid for the life of the process; every plugin load context shares it.
     private static readonly ConcurrentDictionary<string, Assembly> DefaultContextCache = new(StringComparer.OrdinalIgnoreCase);
