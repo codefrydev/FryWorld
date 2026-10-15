@@ -7,7 +7,7 @@ namespace FryWorld.Sdk.Models;
 /// <summary>
 /// Supported data types for declarative plugin configuration settings.
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(PluginSettingTypeJsonConverter))]
 public enum PluginSettingType
 {
     /// <summary>Free text.</summary>
@@ -26,6 +26,49 @@ public enum PluginSettingType
     DirectoryPath,
     /// <summary>Colour as #RRGGBB or #AARRGGBB.</summary>
     Color
+}
+
+/// <summary>
+/// Permissive JSON converter that gracefully maps common type names (such as "number", "bool", "dir")
+/// to <see cref="PluginSettingType"/> without throwing deserialization errors.
+/// </summary>
+public sealed class PluginSettingTypeJsonConverter : JsonConverter<PluginSettingType>
+{
+    /// <inheritdoc />
+    public override PluginSettingType Read(ref System.Text.Json.Utf8JsonReader reader, Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    {
+        if (reader.TokenType == System.Text.Json.JsonTokenType.String)
+        {
+            var str = reader.GetString();
+            if (string.IsNullOrWhiteSpace(str)) return PluginSettingType.String;
+
+            return str.ToLowerInvariant() switch
+            {
+                "string" => PluginSettingType.String,
+                "boolean" or "bool" => PluginSettingType.Boolean,
+                "integer" or "int" => PluginSettingType.Integer,
+                "double" or "float" or "number" or "num" => PluginSettingType.Double,
+                "select" => PluginSettingType.Select,
+                "filepath" or "file" => PluginSettingType.FilePath,
+                "directorypath" or "directory" or "dir" or "folder" => PluginSettingType.DirectoryPath,
+                "color" or "colour" => PluginSettingType.Color,
+                _ => Enum.TryParse<PluginSettingType>(str, ignoreCase: true, out var parsed) ? parsed : PluginSettingType.String
+            };
+        }
+
+        if (reader.TokenType == System.Text.Json.JsonTokenType.Number && reader.TryGetInt32(out var intVal) && Enum.IsDefined(typeof(PluginSettingType), intVal))
+        {
+            return (PluginSettingType)intVal;
+        }
+
+        return PluginSettingType.String;
+    }
+
+    /// <inheritdoc />
+    public override void Write(System.Text.Json.Utf8JsonWriter writer, PluginSettingType value, System.Text.Json.JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value.ToString());
+    }
 }
 
 /// <summary>
