@@ -4,7 +4,7 @@
     <RootNamespace>FryWorld.Sdk</RootNamespace>
     <PackageId Condition="'$(PackageId)' == ''">FryWorld.Sdk</PackageId>
     <Title>FryWorld Plugin &amp; Runtime SDK</Title>
-    <Version Condition="'$(Version)' == ''">0.0.2</Version>
+    <Version Condition="'$(Version)' == ''">0.1.0</Version>
     <!--
       Plugin ABI version. This assembly is the plugin contract: external plugins compile against it
       and do not bundle it (PrivateAssets="all"), so its assembly identity stays fixed at 1.0.0.0.
@@ -15,7 +15,8 @@
     <Copyright>Copyright © 2026 Code Fry Dev</Copyright>
     <Description>Pure, high-performance plugin microkernel, dynamic registries, and runtime SDK for the FryWorld platform</Description>
     <PackageDescription>Cross-platform SDK and microkernel for building plugins, workspaces, and tools for FryWorld.</PackageDescription>
-    <PackageTags>fryworld;plugin;sdk;microkernel;cordis;extensibility</PackageTags>
+    <PackageTags>fryworld;plugin;sdk;microkernel;cordis;extensibility;avalonia</PackageTags>
+    <PackageReleaseNotes>See CHANGELOG.md in the package or https://github.com/codefrydev/FryWorld/blob/main/src/FryWorld.Sdk/CHANGELOG.md</PackageReleaseNotes>
     <PackageProjectUrl>https://github.com/codefrydev/FryWorld</PackageProjectUrl>
     <RepositoryUrl>https://github.com/codefrydev/FryWorld</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -23,12 +24,37 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- The SDK is a public contract: every public member is documented (Directory.Build.props silences CS1591 elsewhere). -->
+    <NoWarn>$(NoWarn.Replace('CS1591', ''))</NoWarn>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!--
+      Compatibility gate. Plugins compiled against an earlier release must keep compiling and loading,
+      so every change to this assembly is additive. `dotnet pack` compares the public surface against
+      the published baseline and fails on any breaking change. Raise the baseline after each release.
+    -->
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>0.0.2</PackageValidationBaselineVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="FryWorld.Sdk.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- One list of host-provided assemblies: read by the loader at run time, by the plugin build targets at build time. -->
+    <EmbeddedResource Include="build\FryWorld.Sdk.HostAssemblies.txt" LogicalName="FryWorld.Sdk.HostAssemblies.txt" />
+
+    <!-- Build targets every plugin project gets from the package: .fryplugin packaging and manifest stamping. -->
+    <None Include="build\FryWorld.Sdk.targets" Pack="true" PackagePath="build\" />
+    <None Include="build\FryWorld.Sdk.HostAssemblies.txt" Pack="true" PackagePath="build\" />
+    <None Include="plugin.schema.json" Pack="true" PackagePath="\" />
+    <None Include="CHANGELOG.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />

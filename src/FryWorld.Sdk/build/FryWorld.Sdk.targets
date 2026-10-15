@@ -1,0 +1,187 @@
+<Project>
+  <!--
+    FryWorld.Sdk plugin packaging.
+
+    Any library project that references FryWorld.Sdk and has a plugin.json next to its project file gets a
+    .fryplugin package on Release builds, with no packaging target of its own. The package holds:
+      - the plugin assembly and every dependency it would publish (NuGet packages, project references,
+        native runtimes/ files, satellite assemblies, and content marked CopyToOutputDirectory),
+      - the plugin's .deps.json, and
+      - plugin.json, with "version", "sdkVersion" and "targetFramework" stamped from the build,
+    and leaves out everything the host provides (FryWorld.Sdk, Avalonia, CommunityToolkit.Mvvm, ...; see
+    FryWorld.Sdk.HostAssemblies.txt), so plugin and host always share one copy of those types.
+
+    Properties (all optional):
+      FryPluginPackageEnabled     false to turn packaging off.
+      FryPluginPackageOnBuild     true/false to package on every build; defaults to Release builds only.
+      FryPluginPackageName        file name without extension; defaults to $(AssemblyName).
+      FryPluginPackageOutputPath  full path of the .fryplugin; defaults to $(TargetDir)$(FryPluginPackageName).fryplugin.
+      FryPluginManifest           path of plugin.json; defaults to plugin.json next to the project.
+      FryPluginIncludeSymbols     true to include .pdb files.
+      FryPluginIncludeDocumentation true to include XML documentation files.
+    Items:
+      FryPluginContent            extra files to add; %(PackagePath) sets the path inside the package.
+      FryPluginExclude            file names (e.g. Foo.dll) to leave out.
+
+    Run it on demand with: dotnet build -c Debug -t:FryPluginPackage
+  -->
+
+  <PropertyGroup>
+    <FryPluginManifest Condition="'$(FryPluginManifest)' == ''">$(MSBuildProjectDirectory)/plugin.json</FryPluginManifest>
+    <FryPluginPackageEnabled Condition="'$(FryPluginPackageEnabled)' == '' and '$(OutputType)' == 'Library' and Exists('$(FryPluginManifest)')">true</FryPluginPackageEnabled>
+    <FryPluginPackageOnBuild Condition="'$(FryPluginPackageOnBuild)' == '' and '$(Configuration)' == 'Release'">true</FryPluginPackageOnBuild>
+    <FryPluginPackageName Condition="'$(FryPluginPackageName)' == ''">$(AssemblyName)</FryPluginPackageName>
+    <_FryHostAssemblyListFile>$(MSBuildThisFileDirectory)FryWorld.Sdk.HostAssemblies.txt</_FryHostAssemblyListFile>
+  </PropertyGroup>
+
+  <!-- Copies plugin.json to the package, stamping it from the build and checking it. Plain text edits keep this
+       working in every MSBuild (dotnet CLI, Visual Studio, Rider) without loading a JSON library. -->
+  <UsingTask TaskName="FryStampPluginManifest"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <SourceFile ParameterType="System.String" Required="true" />
+      <DestinationFile ParameterType="System.String" Required="true" />
+      <Version ParameterType="System.String" Required="true" />
+      <EntryPoint ParameterType="System.String" Required="true" />
+      <SdkVersion ParameterType="System.String" />
+      <TargetFramework ParameterType="System.String" />
+      <PluginId ParameterType="System.String" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        string json = File.ReadAllText(SourceFile);
+
+        Func<string, Regex> fieldPattern = name =>
+            new Regex("(\"" + Regex.Escape(name) + "\"\\s*:\\s*)\"((?:[^\"\\\\]|\\\\.)*)\"");
+        Func<string, string> escape = value => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        Func<string, string> read = name => {
+            Match m = fieldPattern(name).Match(json);
+            return m.Success ? m.Groups[2].Value : null;
+        };
+        Action<string, string> write = (name, value) => {
+            Regex pattern = fieldPattern(name);
+            if (pattern.IsMatch(json)) {
+                json = pattern.Replace(json, m => m.Groups[1].Value + "\"" + escape(value) + "\"", 1);
+            } else {
+                int brace = json.IndexOf('{');
+                json = json.Substring(0, brace + 1) + "\n  \"" + name + "\": \"" + escape(value) + "\"," + json.Substring(brace + 1);
+            }
+        };
+
+        PluginId = read("id");
+        if (string.IsNullOrWhiteSpace(PluginId) ||
+            !Regex.IsMatch(PluginId, "^[A-Za-z0-9]([A-Za-z0-9_.-]*[A-Za-z0-9])?$"))
+        {
+            Log.LogError(null, "FRY001", null, SourceFile, 0, 0, 0, 0,
+                "plugin.json needs an \"id\" of letters, digits, '.', '-' and '_', starting and ending with a letter or digit (found '{0}').",
+                PluginId ?? "");
+            return false;
+        }
+
+        string declaredVersion = read("version");
+        if (!string.IsNullOrEmpty(declaredVersion) && declaredVersion != Version)
+        {
+            Log.LogWarning(null, "FRY003", null, SourceFile, 0, 0, 0, 0,
+                "plugin.json version '{0}' differs from the project's Version '{1}'; the package uses '{1}'. Set <Version> in the project file and drop it from plugin.json, or make them match.",
+                declaredVersion, Version);
+        }
+        write("version", Version);
+
+        string declaredEntry = read("entryPoint");
+        if (string.IsNullOrEmpty(declaredEntry)) {
+            write("entryPoint", EntryPoint);
+        } else if (!string.Equals(declaredEntry, EntryPoint, StringComparison.OrdinalIgnoreCase)) {
+            Log.LogWarning(null, "FRY002", null, SourceFile, 0, 0, 0, 0,
+                "plugin.json entryPoint '{0}' is not this project's assembly '{1}'. Leave entryPoint empty to have it filled in.",
+                declaredEntry, EntryPoint);
+        }
+
+        if (!string.IsNullOrEmpty(SdkVersion)) write("sdkVersion", SdkVersion);
+        if (!string.IsNullOrEmpty(TargetFramework)) write("targetFramework", TargetFramework);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(DestinationFile));
+        File.WriteAllText(DestinationFile, json);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!-- Public entry point: build, then package. -->
+  <Target Name="FryPluginPackage"
+          DependsOnTargets="Build;_FryPluginPackageCore"
+          Condition="'$(FryPluginPackageEnabled)' == 'true'" />
+
+  <Target Name="_FryPluginPackageAfterBuild"
+          AfterTargets="Build"
+          DependsOnTargets="_FryPluginPackageCore"
+          Condition="'$(FryPluginPackageEnabled)' == 'true' and '$(FryPluginPackageOnBuild)' == 'true'" />
+
+  <Target Name="_FryPluginPackageCore"
+          DependsOnTargets="ComputeResolvedFilesToPublishList"
+          Condition="'$(FryPluginPackageEnabled)' == 'true'">
+    <PropertyGroup>
+      <_FryStagingDir>$(MSBuildProjectDirectory)/$(IntermediateOutputPath)fryplugin/</_FryStagingDir>
+      <_FryPackagePath>$(FryPluginPackageOutputPath)</_FryPackagePath>
+      <_FryPackagePath Condition="'$(_FryPackagePath)' == ''">$(TargetDir)$(FryPluginPackageName).fryplugin</_FryPackagePath>
+      <_FrySdkVersion>@(ReferencePath->WithMetadataValue('NuGetPackageId', 'FryWorld.Sdk')->'%(NuGetPackageVersion)')</_FrySdkVersion>
+    </PropertyGroup>
+
+    <!-- Host-provided names as one case-insensitive regex: "Avalonia.*" becomes "Avalonia\..*". -->
+    <ReadLinesFromFile File="$(_FryHostAssemblyListFile)">
+      <Output TaskParameter="Lines" ItemName="_FryHostListLine" />
+    </ReadLinesFromFile>
+    <ItemGroup>
+      <!-- ReadLinesFromFile already skips blank lines; drop comments. -->
+      <_FryHostPattern Include="@(_FryHostListLine)" Condition="!$([System.String]::Copy('%(Identity)').StartsWith('#'))" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_FryHostRegex>@(_FryHostPattern->Replace('.', '\.')->Replace('*', '.*'), '|')</_FryHostRegex>
+      <_FryHostRegex>(?i)^($(_FryHostRegex))$</_FryHostRegex>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <_FryCandidate Include="@(ResolvedFileToPublish)" />
+
+      <!-- Host-provided, by NuGet package (drops their native files too) or by assembly file name. -->
+      <_FryCandidate Remove="@(_FryCandidate)"
+                     Condition="'%(_FryCandidate.NuGetPackageId)' != '' and $([System.Text.RegularExpressions.Regex]::IsMatch('%(_FryCandidate.NuGetPackageId)', '$(_FryHostRegex)'))" />
+      <_FryCandidate Remove="@(_FryCandidate)"
+                     Condition="'%(_FryCandidate.Extension)' == '.dll' and $([System.Text.RegularExpressions.Regex]::IsMatch('%(_FryCandidate.Filename)', '$(_FryHostRegex)'))" />
+
+      <!-- Written separately, stamped. -->
+      <_FryCandidate Remove="@(_FryCandidate)" Condition="'%(_FryCandidate.Filename)%(_FryCandidate.Extension)' == 'plugin.json'" />
+
+      <_FryCandidate Remove="@(_FryCandidate)" Condition="'%(_FryCandidate.Extension)' == '.pdb' and '$(FryPluginIncludeSymbols)' != 'true'" />
+      <_FryCandidate Remove="@(_FryCandidate)" Condition="'%(_FryCandidate.Extension)' == '.xml' and '$(FryPluginIncludeDocumentation)' != 'true'" />
+      <_FryCandidate Remove="@(_FryCandidate)" Condition="'@(FryPluginExclude)' != '' and '%(_FryCandidate.Filename)%(_FryCandidate.Extension)' == '%(FryPluginExclude.Identity)'" />
+      <_FryCandidate Remove="@(_FryCandidate)" Condition="'%(_FryCandidate.Extension)' == '.fryplugin'" />
+    </ItemGroup>
+
+    <RemoveDir Directories="$(_FryStagingDir)" />
+
+    <Copy SourceFiles="@(_FryCandidate)"
+          DestinationFiles="@(_FryCandidate->'$(_FryStagingDir)%(RelativePath)')" />
+    <Copy SourceFiles="$(ProjectDepsFilePath)"
+          DestinationFolder="$(_FryStagingDir)"
+          Condition="'$(ProjectDepsFilePath)' != '' and Exists('$(ProjectDepsFilePath)')" />
+    <Copy SourceFiles="@(FryPluginContent)"
+          DestinationFiles="@(FryPluginContent->'$(_FryStagingDir)%(PackagePath)')"
+          Condition="'@(FryPluginContent)' != ''" />
+
+    <FryStampPluginManifest SourceFile="$(FryPluginManifest)"
+                            DestinationFile="$(_FryStagingDir)plugin.json"
+                            Version="$(Version)"
+                            EntryPoint="$(TargetFileName)"
+                            SdkVersion="$(_FrySdkVersion)"
+                            TargetFramework="$(TargetFramework)">
+      <Output TaskParameter="PluginId" PropertyName="_FryPluginId" />
+    </FryStampPluginManifest>
+
+    <ZipDirectory SourceDirectory="$(_FryStagingDir)" DestinationFile="$(_FryPackagePath)" Overwrite="true" />
+    <RemoveDir Directories="$(_FryStagingDir)" />
+
+    <Message Importance="High" Text="FryWorld: packaged $(_FryPluginId) $(Version) -> $(_FryPackagePath)" />
+  </Target>
+</Project>

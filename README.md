@@ -48,52 +48,28 @@ dotnet run --project src/FryWorld/FryWorld.csproj
 
 ## 🧩 Building a Plugin for FryWorld
 
-1. Create a new `.NET 10` Class Library:
+1. Create a `.NET 10` class library that references the SDK, and give it a `plugin.json`:
    ```xml
    <Project Sdk="Microsoft.NET.Sdk">
      <PropertyGroup>
        <TargetFramework>net10.0</TargetFramework>
+       <Version>1.0.0</Version>
      </PropertyGroup>
      <ItemGroup>
-       <PackageReference Include="FryWorld.Sdk" Version="1.0.0" PrivateAssets="all" />
+       <PackageReference Include="FryWorld.Sdk" Version="0.1.0" />
      </ItemGroup>
    </Project>
    ```
-
-2. Implement `IFryPlugin`:
-   ```csharp
-   using FryWorld.Sdk.Descriptors;
-   using FryWorld.Sdk.Plugins;
-
-   public class MyStudioPlugin : FryPluginBase
-   {
-       public override string Id => "com.example.mystudio";
-       public override string Name => "My Studio";
-
-       public override Task ApplyAsync(IFryPluginContext ctx, CancellationToken ct = default)
-       {
-           // Register full-viewport workspace studio page
-           ctx.RegisterNavigationItem(new NavigationItemDescriptor
-           {
-               Id = "my.studio",
-               Title = "My Studio",
-               IconKind = "Wrench",
-               ViewFactory = () => new MyStudioView()
-           });
-
-           // Register Command Palette action (⌘K / Ctrl+K)
-           ctx.RegisterCommand(new CommandPaletteDescriptor
-           {
-               Id = "cmd.mystudio.open",
-               Title = "Open My Studio",
-               Category = "Navigation",
-               ShortcutKey = "Ctrl+Shift+M"
-           });
-
-           return Task.CompletedTask;
-       }
-   }
+   ```json
+   { "$schema": "https://raw.githubusercontent.com/codefrydev/FryWorld/main/src/FryWorld.Sdk/plugin.schema.json",
+     "id": "com.example.mystudio", "name": "My Studio" }
    ```
+
+2. Subclass `FryPluginBase` and register pages, overlays and commands in `ApplyAsync`. Use `IShellService` to open them and `ctx.GetPluginSettings()` for settings.
+
+3. Run `dotnet build -c Release`. It produces `bin/Release/net10.0/<AssemblyName>.fryplugin`, ready to drop into the plugins folder or publish. Use `FryRunner.Configure<TPlugin>()` to run the plugin on its own, and `FryPluginTestHost` to unit-test it.
+
+See the [SDK README](src/FryWorld.Sdk/README.md) for the full guide, and [docs/sdk](docs/sdk) for concepts, authoring and the compatibility policy.
 
 ---
 

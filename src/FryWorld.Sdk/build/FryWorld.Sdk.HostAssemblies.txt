@@ -1,0 +1,54 @@
+# Assemblies and NuGet packages every FryWorld host provides to plugins. One name per line; a trailing *
+# matches any suffix. Each name is matched against both assembly file names and NuGet package ids.
+#
+# The same list is used in two places, so they cannot drift apart:
+#  - At build time, FryWorld.Sdk.targets leaves these out of a plugin's .fryplugin package (matching package ids
+#    also drops their native runtimes/ files).
+#  - At run time, CollectiblePluginLoadContext resolves these from the host when a plugin does not carry its own
+#    copy, so plugin and host share one copy of each type (Avalonia controls, MVVM base classes, logging and DI
+#    abstractions).
+#
+# List only what every host ships (FryWorld and FryPDF both reference all of these). Packages only some hosts
+# have (AvaloniaEdit is in FryWorld but not FryPDF) and Avalonia extension packages (WebView, DataGrid, TextMate,
+# ...) must stay out, so plugins that use them carry their own copy.
+
+# The SDK contract
+FryWorld.Sdk
+FryWorld
+
+# Avalonia core: package ids, then the assemblies inside them
+Avalonia
+Avalonia.Base
+Avalonia.Controls
+Avalonia.Markup
+Avalonia.Markup.Xaml
+Avalonia.Dialogs
+Avalonia.OpenGL
+Avalonia.Metal
+Avalonia.Vulkan
+Avalonia.MicroCom
+Avalonia.DesignerSupport
+Avalonia.Remote.Protocol
+Avalonia.Skia
+Avalonia.Desktop
+Avalonia.Native
+Avalonia.Win32
+Avalonia.Win32.Automation
+Avalonia.X11
+Avalonia.FreeDesktop
+Avalonia.Angle.Windows.Natives
+Avalonia.Themes.Fluent
+Avalonia.Fonts.Inter
+Avalonia.Controls.ColorPicker
+MicroCom.Runtime
+Tmds.DBus.Protocol
+SkiaSharp*
+HarfBuzzSharp*
+
+# MVVM, icons, DI and logging
+CommunityToolkit.Mvvm
+Material.Icons
+Material.Icons.Avalonia
+Microsoft.Extensions.DependencyInjection
+Microsoft.Extensions.DependencyInjection.Abstractions
+Microsoft.Extensions.Logging.Abstractions

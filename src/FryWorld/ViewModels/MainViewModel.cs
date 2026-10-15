@@ -7,9 +7,11 @@ using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FryWorld.Sdk.Descriptors;
+using FryWorld.Sdk.Hosting;
 using FryWorld.Sdk.Marketplace;
 using FryWorld.Sdk.Plugins;
 using FryWorld.Sdk.Services;
+using FryWorld.Services;
 
 namespace FryWorld.ViewModels;
 
@@ -110,6 +112,7 @@ public partial class MainViewModel : ViewModelBase
     private readonly PluginHost _host;
     private readonly IThemeService _themeService;
     private readonly IPluginMarketplaceService _marketplace;
+    private readonly PluginStartup _startup;
     private readonly Dictionary<string, Control> _viewCache = new(StringComparer.OrdinalIgnoreCase);
 
     [ObservableProperty]
@@ -151,11 +154,13 @@ public partial class MainViewModel : ViewModelBase
     public MainViewModel(
         PluginHost host,
         IThemeService themeService,
-        IPluginMarketplaceService marketplace)
+        IPluginMarketplaceService marketplace,
+        PluginStartup startup)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
         _themeService = themeService ?? throw new ArgumentNullException(nameof(themeService));
         _marketplace = marketplace ?? throw new ArgumentNullException(nameof(marketplace));
+        _startup = startup ?? throw new ArgumentNullException(nameof(startup));
 
         LauncherHomeVm = new LauncherHomeViewModel(_host, _marketplace, NavigateToPlugin);
         PluginsManagerVm = new PluginsManagerViewModel(_host, _marketplace);
@@ -284,14 +289,10 @@ public partial class MainViewModel : ViewModelBase
             NavigationItemsUpdated?.Invoke();
         }
 
-        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            Update();
-        }
-        else
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(Update);
-        }
+
+        // The plugin host raises registry events on the UI thread (PluginHostOptions.EventSynchronizationContext),
+        // and the shell's other callers are on it too.
+        Update();
     }
 
     private void OnDynamicOverlaysChanged()
@@ -315,14 +316,10 @@ public partial class MainViewModel : ViewModelBase
             }
         }
 
-        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            Update();
-        }
-        else
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(Update);
-        }
+
+        // The plugin host raises registry events on the UI thread (PluginHostOptions.EventSynchronizationContext),
+        // and the shell's other callers are on it too.
+        Update();
     }
 
     public async void NavigateToPlugin(string pluginId)
@@ -333,6 +330,13 @@ public partial class MainViewModel : ViewModelBase
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() => NavigateToPlugin(pluginId));
             return;
+        }
+
+        // Installed plugins load in the background at startup. Wait for that rather than loading a second
+        // copy of the plugin from disk below.
+        if (!_startup.Completion.IsCompleted)
+        {
+            await _startup.Completion;
         }
 
         // 1. Check if already in NavigationItems

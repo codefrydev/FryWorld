@@ -1,5 +1,6 @@
 using System;
 using FryWorld.Sdk.Loading;
+using FryWorld.Sdk.Tests.TestSupport;
 using Xunit;
 
 namespace FryWorld.Sdk.Tests;
@@ -26,14 +27,10 @@ public class PackageLoaderTests
         PluginIdValidator.ValidateIdentifier(validId);
     }
 
-    [Fact]
+    [CSharpEditorPackageFact]
     public async Task FryPluginPackageLoader_LoadsAndMountsCSharpEditorPlugin()
     {
-        var packagePath = "/Users/codefrydev/Desktop/SourceCode/FryWorld/FrySharp/bin/Release/net10.0/CSharpEditor.fryplugin";
-        if (!System.IO.File.Exists(packagePath))
-        {
-            return; // Skip if release package has not been built
-        }
+        var packagePath = TestPaths.CSharpEditorPackage!;
 
         var tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "FryWorldTestPlugins_" + Guid.NewGuid().ToString("N"));
         try
@@ -76,18 +73,14 @@ public class PackageLoaderTests
         }
     }
 
-    [Fact]
+    [InstalledCSharpEditorFact]
     public async Task DiscoverAndLoadDirectory_LoadsCSharpEditorPlugin_WithNonCollectibleContextAndExecutesRoslyn()
     {
-        var installedDir = System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            "Library", "Application Support", "FryWorld", "plugins");
-
-        if (!System.IO.Directory.Exists(installedDir)) return;
+        var installedDir = TestPaths.InstalledPluginsDirectoryWithCSharpEditor!;
 
         var packages = PluginAssemblyLoader.DiscoverAndLoadDirectory(installedDir);
         var csharpPackage = packages.FirstOrDefault(p => p.Plugins.Any(pl => pl.Id == "com.fryworld.csharpstudio"));
-        if (csharpPackage == null) return;
+        Assert.NotNull(csharpPackage);
 
         Assert.False(csharpPackage.IsCollectible);
         Assert.False(csharpPackage.Context.IsCollectible);

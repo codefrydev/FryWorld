@@ -37,6 +37,11 @@ public partial class PluginsManagerViewModel : ViewModelBase
     private string _statusMessage = string.Empty;
 
     public ObservableCollection<PluginItemViewModel> InstalledPlugins { get; } = new();
+
+    /// <summary>Warnings and errors from loading and mounting plugins, newest first, so users can see why a plugin is missing.</summary>
+    public ObservableCollection<PluginProblemViewModel> Problems { get; } = new();
+
+    public bool HasProblems => Problems.Count > 0;
     public ObservableCollection<MarketplacePluginItem> MarketplacePlugins { get; } = new();
     public ObservableCollection<string> Categories { get; } = new();
 
@@ -54,7 +59,23 @@ public partial class PluginsManagerViewModel : ViewModelBase
         Categories.Add("Utility");
 
         RefreshInstalledList();
+
+        // Plugins load in the background after startup; keep the list in step as they arrive and change state.
+        _host.PluginStateChanged += (_, _) => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshInstalledList);
+
+        Problems.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasProblems));
+        foreach (var diagnostic in _host.Diagnostics) AddProblem(diagnostic);
+        _host.DiagnosticReported += diagnostic => Avalonia.Threading.Dispatcher.UIThread.Post(() => AddProblem(diagnostic));
     }
+
+    private void AddProblem(PluginLoadDiagnostic diagnostic)
+    {
+        if (diagnostic.Severity == PluginDiagnosticSeverity.Info) return;
+        Problems.Insert(0, new PluginProblemViewModel(diagnostic));
+    }
+
+    [RelayCommand]
+    public void ClearProblems() => Problems.Clear();
 
     [RelayCommand]
     public void RefreshInstalledList()
@@ -110,4 +131,33 @@ public partial class PluginsManagerViewModel : ViewModelBase
             item.State = PluginLifecycleState.Unloaded;
         }
     }
+}
+
+/// <summary>One row in the Plugins Manager's Problems list.</summary>
+public sealed class PluginProblemViewModel
+{
+    public PluginProblemViewModel(PluginLoadDiagnostic diagnostic)
+    {
+        Diagnostic = diagnostic;
+    }
+
+    public PluginLoadDiagnostic Diagnostic { get; }
+
+    public bool IsError => Diagnostic.Severity == PluginDiagnosticSeverity.Error;
+
+    public string IconKind => IsError ? "AlertCircleOutline" : "AlertOutline";
+
+    public string Title => Diagnostic.PluginId ?? System.IO.Path.GetFileName(Diagnostic.Path ?? string.Empty) switch
+    {
+        "" => "Plugins",
+        var name => name
+    };
+
+    public string Message => Diagnostic.Message;
+
+    /// <summary>Stage, time and the underlying error, for the tooltip.</summary>
+    public string Details =>
+        $"{Diagnostic.Stage} · {Diagnostic.Timestamp.ToLocalTime():HH:mm:ss}" +
+        (Diagnostic.Path != null ? $"\n{Diagnostic.Path}" : string.Empty) +
+        (Diagnostic.Exception != null ? $"\n{Diagnostic.Exception.GetType().Name}: {Diagnostic.Exception.Message}" : string.Empty);
 }

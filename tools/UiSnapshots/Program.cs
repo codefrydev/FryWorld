@@ -6,8 +6,10 @@ using Microsoft.Extensions.DependencyInjection;
 using FryWorld.Sdk.Descriptors;
 using FryWorld.Sdk.Loading;
 using FryWorld.Sdk.Marketplace;
+using FryWorld.Sdk.Hosting;
 using FryWorld.Sdk.Plugins;
 using FryWorld.Sdk.Services;
+using FryWorld.Services;
 using FryWorld.ViewModels;
 using FryWorld.Views;
 
@@ -167,6 +169,14 @@ public static class Program
     private static int RunPluginsSnapshot(bool light)
     {
         Snapshot.Start(lightTheme: light);
+
+        // Show the installed plugins (and any problems loading them), not the moment before they load.
+        var startup = App.Services.GetRequiredService<PluginStartup>().Completion;
+        while (!startup.IsCompleted)
+        {
+            Snapshot.Settle(1);
+        }
+
         var mainVm = App.Services.GetRequiredService<MainViewModel>();
         var view = new PluginsManagerPageView { DataContext = mainVm.PluginsManagerVm };
         Snapshot.RenderAndSave(view, 1200, 800, "fryworld_plugins_manager");
@@ -229,11 +239,26 @@ public static class Program
         Snapshot.Start(lightTheme: light);
 
         var host = App.Services.GetRequiredService<PluginHost>();
+
+        // Installed plugins load in the background; let that finish (pumping the UI thread, which plugins
+        // may need) so an installed copy of the same plugin cannot race the one loaded here.
+        var startup = App.Services.GetRequiredService<PluginStartup>().Completion;
+        while (!startup.IsCompleted)
+        {
+            Snapshot.Settle(1);
+        }
+
         var package = PluginAssemblyLoader.LoadAssembly(pluginPath);
 
         Console.WriteLine($"Discovered {package.Plugins.Count} plugin(s) in package.");
         foreach (var plugin in package.Plugins)
         {
+            if (host.GetPluginState(plugin.Id) is PluginLifecycleState.Active)
+            {
+                Console.WriteLine($"Plugin '{plugin.Id}' is already installed and mounted; using the installed copy.");
+                continue;
+            }
+
             Console.WriteLine($"Mounting plugin '{plugin.Name}' ({plugin.Id} v{plugin.Version})...");
             host.RegisterPlugin(plugin);
             plugin.ApplyAsync(host.Context).GetAwaiter().GetResult();

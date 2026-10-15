@@ -72,6 +72,20 @@ jobs:
           -c Release
           --verbosity normal
 
+      # Records SDK performance for this release next to the package (ShortRun, a few minutes).
+      - name: Run SDK Benchmarks
+        run: >
+          dotnet run -c Release --project tests/FryWorld.Sdk.Benchmarks
+          -- --filter '*' --artifacts ./artifacts/benchmarks
+
+      - name: Upload Benchmark Results
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: fryworld-sdk-benchmarks
+          path: ./artifacts/benchmarks/results
+          if-no-files-found: warn
+
+      # Package validation runs as part of pack and fails it on any breaking change against the baseline release.
       - name: Pack NuGet Package
         run: >
           dotnet pack src/FryWorld.Sdk/FryWorld.Sdk.csproj

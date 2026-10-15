@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -16,21 +17,17 @@ public sealed class CollectiblePluginLoadContext : AssemblyLoadContext
     private static readonly HashSet<string> HostContractAssemblies =
         new(StringComparer.OrdinalIgnoreCase) { "FryWorld.Sdk", "FryWorld" };
 
-    private static readonly HashSet<string> HostSharedFrameworkAssemblies =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "Avalonia", "Avalonia.Base", "Avalonia.Controls", "Avalonia.Controls.ColorPicker",
-            "Avalonia.Desktop", "Avalonia.Dialogs", "Avalonia.Fonts.Inter", "Avalonia.Markup",
-            "Avalonia.Markup.Xaml", "Avalonia.Skia", "Avalonia.Themes.Fluent", "Avalonia.AvaloniaEdit",
-            "SkiaSharp", "CommunityToolkit.Mvvm", "Material.Icons", "Material.Icons.Avalonia",
-            "Microsoft.Extensions.DependencyInjection",
-            "Microsoft.Extensions.DependencyInjection.Abstractions",
-            "Microsoft.Extensions.Logging.Abstractions"
-        };
+    /// <summary>
+    /// Whether the host supplies <paramref name="assemblyName"/> to plugins (the SDK contract or a shared
+    /// framework such as Avalonia), rather than each plugin bringing its own copy.
+    /// </summary>
+    internal static bool IsHostProvided(string assemblyName) =>
+        HostContractAssemblies.Contains(assemblyName) || HostAssemblyList.Matches(assemblyName);
 
     private readonly AssemblyDependencyResolver _resolver;
     private readonly string _pluginDirectory;
 
+    /// <summary>Creates a context resolving dependencies next to <paramref name="pluginPath"/>; it can be unloaded when <paramref name="isCollectible"/> is true.</summary>
     public CollectiblePluginLoadContext(string pluginPath, bool isCollectible = true)
         : base(name: Path.GetFileNameWithoutExtension(pluginPath), isCollectible: isCollectible)
     {
@@ -38,6 +35,7 @@ public sealed class CollectiblePluginLoadContext : AssemblyLoadContext
         _pluginDirectory = Path.GetDirectoryName(pluginPath) ?? string.Empty;
     }
 
+    /// <summary>Resolves an assembly for the plugin: the host's copy for the SDK contract, the plugin's own copy when it has one, and otherwise the host's copy of shared frameworks.</summary>
     protected override Assembly? Load(AssemblyName assemblyName)
     {
         // Stage 1 — Host contract assemblies (FryWorld.Sdk). Must always resolve to the host's copy
@@ -66,8 +64,7 @@ public sealed class CollectiblePluginLoadContext : AssemblyLoadContext
         }
 
         // Stage 3 — Shared host frameworks (Avalonia, MVVM toolkit, etc.)
-        if (assemblyName.Name != null && (HostSharedFrameworkAssemblies.Contains(assemblyName.Name) ||
-                                          assemblyName.Name.StartsWith("Avalonia.", StringComparison.OrdinalIgnoreCase)))
+        if (assemblyName.Name != null && HostAssemblyList.Matches(assemblyName.Name))
         {
             var shared = ResolveFromDefaultContext(assemblyName);
             if (shared != null) return shared;
@@ -76,25 +73,47 @@ public sealed class CollectiblePluginLoadContext : AssemblyLoadContext
         return null;
     }
 
+    // Host assemblies already resolved from the default context, by simple name. The default context never
+    // unloads, so an entry stays valid for the life of the process; every plugin load context shares it.
+    private static readonly ConcurrentDictionary<string, Assembly> DefaultContextCache = new(StringComparer.OrdinalIgnoreCase);
+
     private static Assembly? ResolveFromDefaultContext(AssemblyName assemblyName)
     {
-        if (string.IsNullOrWhiteSpace(assemblyName.Name)) return null;
+        var name = assemblyName.Name;
+        if (string.IsNullOrWhiteSpace(name)) return null;
 
-        var loaded = Default.Assemblies.FirstOrDefault(a =>
-            string.Equals(a.GetName().Name, assemblyName.Name, StringComparison.OrdinalIgnoreCase));
-        if (loaded != null) return loaded;
+        if (DefaultContextCache.TryGetValue(name, out var cached)) return cached;
 
+        var resolved = FindOrLoadInDefaultContext(assemblyName, name);
+        if (resolved != null)
+        {
+            DefaultContextCache.TryAdd(name, resolved);
+        }
+        return resolved;
+    }
+
+    private static Assembly? FindOrLoadInDefaultContext(AssemblyName assemblyName, string name)
+    {
+        foreach (var assembly in Default.Assemblies)
+        {
+            if (string.Equals(assembly.GetName().Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return assembly;
+            }
+        }
+
+        // Load by simple name first so the host's version wins over the version the plugin compiled against.
         try
         {
-            return Default.LoadFromAssemblyName(new AssemblyName(assemblyName.Name));
+            return Default.LoadFromAssemblyName(new AssemblyName(name));
         }
-        catch
+        catch (Exception ex) when (ex is FileNotFoundException or FileLoadException or BadImageFormatException)
         {
             try
             {
                 return Default.LoadFromAssemblyName(assemblyName);
             }
-            catch
+            catch (Exception inner) when (inner is FileNotFoundException or FileLoadException or BadImageFormatException)
             {
                 return null;
             }

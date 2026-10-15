@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using FryWorld.Sdk.Descriptors;
 using FryWorld.Sdk.Pipelines;
@@ -13,39 +15,74 @@ namespace FryWorld.Sdk.Plugins;
 /// Primary implementation of <see cref="IFryPluginContext"/>.
 /// Manages services, effect rollbacks, and capability descriptors for an active plugin session.
 /// </summary>
+/// <remarks>
+/// Registry reads (<c>GetRegistered*</c>) are lock-free and allocation-free: each registry keeps an
+/// immutable, already-sorted snapshot that is rebuilt only when something registers or unregisters.
+/// Change events can be deferred with <see cref="DeferChangeNotifications"/> and delivered on a chosen
+/// thread with <see cref="NotificationContext"/>.
+/// </remarks>
 public class FryPluginContext : IFryPluginContext
 {
     private readonly ConcurrentDictionary<Type, object> _services = new();
+
+    // Every live registration per contract, oldest first. _services holds the newest for lock-free reads;
+    // when it is unregistered, the one before it becomes current again.
+    private readonly Dictionary<Type, List<object>> _serviceRegistrations = new();
     private readonly IPipelineManager _pipelines;
     private readonly PluginScope? _scope;
     private readonly IServiceProvider? _fallbackServiceProvider;
 
     // Registries
-    private readonly List<NavigationItemDescriptor> _navigationItems = new();
-    private readonly List<OverlayDescriptor> _overlays = new();
-    private readonly List<CommandPaletteDescriptor> _commands = new();
-    private readonly List<StatusBarWidgetDescriptor> _statusBarWidgets = new();
-    private readonly List<ToolDescriptor> _tools = new();
-    private readonly List<RibbonTabDescriptor> _ribbonTabs = new();
-    private readonly List<SidebarTabDescriptor> _sidebarTabs = new();
-    private readonly List<InspectorSectionDescriptor> _inspectors = new();
-    private readonly List<ShortcutDescriptor> _shortcuts = new();
-    private readonly List<DialogDescriptor> _dialogs = new();
-    private readonly object _registryLock = new();
+    private readonly Registry<NavigationItemDescriptor> _navigationItems = new(RegistryKind.Navigation, static n => n.Order);
+    private readonly Registry<OverlayDescriptor> _overlays = new(RegistryKind.Overlays);
+    private readonly Registry<CommandPaletteDescriptor> _commands = new(RegistryKind.Commands);
+    private readonly Registry<StatusBarWidgetDescriptor> _statusBarWidgets = new(RegistryKind.StatusBar, static w => w.Order);
+    private readonly Registry<ToolDescriptor> _tools = new(RegistryKind.Tools);
+    private readonly Registry<RibbonTabDescriptor> _ribbonTabs = new(RegistryKind.Ribbon, static r => r.Order);
+    private readonly Registry<SidebarTabDescriptor> _sidebarTabs = new(RegistryKind.Sidebars, static s => s.Order);
+    private readonly Registry<InspectorSectionDescriptor> _inspectors = new(RegistryKind.Inspectors, static i => i.Order);
+    private readonly Registry<ShortcutDescriptor> _shortcuts = new(RegistryKind.Shortcuts);
+    private readonly Registry<DialogDescriptor> _dialogs = new(RegistryKind.Dialogs);
 
+    // Change notification batching: while _deferDepth > 0, changed registries are recorded as bits in
+    // _pendingChanges and each fires once when the last deferral ends.
+    private int _deferDepth;
+    private int _pendingChanges;
+
+    /// <inheritdoc />
     public IPipelineManager Pipelines => _pipelines;
 
+    /// <summary>
+    /// Where registry change events are raised. When null (the default) they are raised synchronously on the
+    /// thread that registered or unregistered. Set it to the UI thread's context so handlers can update
+    /// bound collections without marshalling themselves.
+    /// </summary>
+    public SynchronizationContext? NotificationContext { get; set; }
+
+    /// <inheritdoc />
     public event Action? NavigationItemsChanged;
+    /// <inheritdoc />
     public event Action? OverlaysChanged;
+    /// <inheritdoc />
     public event Action? CommandsChanged;
+    /// <inheritdoc />
     public event Action? StatusBarWidgetsChanged;
+    /// <inheritdoc />
     public event Action? ToolsChanged;
+    /// <inheritdoc />
     public event Action? RibbonChanged;
+    /// <inheritdoc />
     public event Action? SidebarsChanged;
+    /// <inheritdoc />
     public event Action? InspectorsChanged;
+    /// <inheritdoc />
     public event Action? ShortcutsChanged;
+    /// <inheritdoc />
     public event Action? DialogsChanged;
 
+    /// <summary>
+    /// Creates a context. Registrations made directly on it are bound to <paramref name="scope"/> when one is given.
+    /// </summary>
     public FryPluginContext(
         PluginScope? scope = null,
         IPipelineManager? pipelines = null,
@@ -66,22 +103,137 @@ public class FryPluginContext : IFryPluginContext
         return new ScopedPluginContext(this, scope);
     }
 
+    /// <summary>
+    /// Holds back registry change events until the returned handle is disposed, then raises each changed
+    /// registry's event once. Use it around a batch of registrations, such as a plugin mounting, so the UI
+    /// rebuilds once instead of once per registration. Deferrals nest.
+    /// </summary>
+    public IDisposable DeferChangeNotifications()
+    {
+        Interlocked.Increment(ref _deferDepth);
+        return new DisposableAction(EndDeferral);
+    }
+
+    private void EndDeferral()
+    {
+        if (Interlocked.Decrement(ref _deferDepth) == 0)
+        {
+            FlushPendingChanges();
+        }
+    }
+
+    private void NotifyChanged(RegistryKind kind)
+    {
+        if (Volatile.Read(ref _deferDepth) > 0)
+        {
+            Interlocked.Or(ref _pendingChanges, 1 << (int)kind);
+
+            // The last deferral may have ended between the check and recording the change; flush it here
+            // so it is not lost.
+            if (Volatile.Read(ref _deferDepth) == 0)
+            {
+                FlushPendingChanges();
+            }
+            return;
+        }
+
+        Raise(kind);
+    }
+
+    private void FlushPendingChanges()
+    {
+        var pending = Interlocked.Exchange(ref _pendingChanges, 0);
+        for (var kind = 0; pending != 0; kind++, pending >>= 1)
+        {
+            if ((pending & 1) != 0) Raise((RegistryKind)kind);
+        }
+    }
+
+    private void Raise(RegistryKind kind)
+    {
+        var handler = kind switch
+        {
+            RegistryKind.Navigation => NavigationItemsChanged,
+            RegistryKind.Overlays => OverlaysChanged,
+            RegistryKind.Commands => CommandsChanged,
+            RegistryKind.StatusBar => StatusBarWidgetsChanged,
+            RegistryKind.Tools => ToolsChanged,
+            RegistryKind.Ribbon => RibbonChanged,
+            RegistryKind.Sidebars => SidebarsChanged,
+            RegistryKind.Inspectors => InspectorsChanged,
+            RegistryKind.Shortcuts => ShortcutsChanged,
+            RegistryKind.Dialogs => DialogsChanged,
+            _ => null
+        };
+
+        if (handler == null) return;
+
+        var context = NotificationContext;
+        if (context == null || ReferenceEquals(SynchronizationContext.Current, context))
+        {
+            handler();
+        }
+        else
+        {
+            context.Post(static state => ((Action)state!)(), handler);
+        }
+    }
+
     // --- 1. Service Bus ---
 
+    /// <inheritdoc />
     public virtual void RegisterService<TService>(TService implementation) where TService : class
     {
         RegisterService(typeof(TService), implementation);
     }
 
+    /// <inheritdoc />
     public virtual void RegisterService(Type serviceType, object implementation)
     {
         ArgumentNullException.ThrowIfNull(serviceType);
         ArgumentNullException.ThrowIfNull(implementation);
 
-        _services[serviceType] = implementation;
-        _scope?.RegisterEffect(() => _services.TryRemove(serviceType, out _));
+        lock (_serviceRegistrations)
+        {
+            if (!_serviceRegistrations.TryGetValue(serviceType, out var registrations))
+            {
+                registrations = new List<object>();
+                _serviceRegistrations[serviceType] = registrations;
+            }
+            registrations.Add(implementation);
+            _services[serviceType] = implementation;
+        }
+
+        _scope?.RegisterEffect(() => RemoveServiceRegistration(serviceType, implementation));
     }
 
+    /// <summary>
+    /// Removes one registration of <paramref name="serviceType"/>. If it was the current one, the previous
+    /// registration (for example, the one a plugin overrode) becomes current again.
+    /// </summary>
+    private void RemoveServiceRegistration(Type serviceType, object implementation)
+    {
+        lock (_serviceRegistrations)
+        {
+            if (!_serviceRegistrations.TryGetValue(serviceType, out var registrations)) return;
+
+            var index = registrations.LastIndexOf(implementation);
+            if (index < 0) return;
+            registrations.RemoveAt(index);
+
+            if (registrations.Count == 0)
+            {
+                _serviceRegistrations.Remove(serviceType);
+                _services.TryRemove(serviceType, out _);
+            }
+            else
+            {
+                _services[serviceType] = registrations[^1];
+            }
+        }
+    }
+
+    /// <inheritdoc />
     public virtual TService GetService<TService>() where TService : class
     {
         if (TryGetService<TService>(out var service))
@@ -92,6 +244,7 @@ public class FryPluginContext : IFryPluginContext
         throw new InvalidOperationException($"Required service of type '{typeof(TService).FullName}' is not registered.");
     }
 
+    /// <inheritdoc />
     public virtual bool TryGetService<TService>([NotNullWhen(true)] out TService? service) where TService : class
     {
         if (_services.TryGetValue(typeof(TService), out var impl) && impl is TService typed)
@@ -110,13 +263,16 @@ public class FryPluginContext : IFryPluginContext
         return false;
     }
 
+    /// <inheritdoc />
     public virtual bool HasService<TService>() where TService : class => HasService(typeof(TService));
 
+    /// <inheritdoc />
     public virtual bool HasService(Type serviceType)
     {
         return _services.ContainsKey(serviceType) || (_fallbackServiceProvider?.GetService(serviceType) != null);
     }
 
+    /// <inheritdoc />
     public virtual object? GetService(Type serviceType)
     {
         if (_services.TryGetValue(serviceType, out var impl))
@@ -129,12 +285,14 @@ public class FryPluginContext : IFryPluginContext
 
     // --- 2. Reversible Effects ---
 
+    /// <inheritdoc />
     public virtual IDisposable RegisterEffect(Action onDispose)
     {
         if (_scope != null) return _scope.RegisterEffect(onDispose);
         return new DisposableAction(onDispose);
     }
 
+    /// <inheritdoc />
     public virtual IDisposable RegisterDisposable(IDisposable disposable)
     {
         ArgumentNullException.ThrowIfNull(disposable);
@@ -143,225 +301,186 @@ public class FryPluginContext : IFryPluginContext
 
     // --- 3. Pipelines ---
 
+    /// <inheritdoc />
     public virtual IDisposable RegisterWaterfall<TContext>(string pipelineName, Func<TContext, Func<Task>, Task> middleware) =>
         _pipelines.RegisterWaterfall(pipelineName, middleware);
 
+    /// <inheritdoc />
     public virtual Task ExecuteWaterfallAsync<TContext>(string pipelineName, TContext context, Func<Task>? terminal = null) =>
         _pipelines.ExecuteWaterfallAsync(pipelineName, context, terminal);
 
+    /// <inheritdoc />
     public virtual IDisposable RegisterBail<TContext, TResult>(string pipelineName, Func<TContext, Task<TResult?>> handler) where TResult : class =>
         _pipelines.RegisterBail(pipelineName, handler);
 
+    /// <inheritdoc />
     public virtual Task<TResult?> ExecuteBailAsync<TContext, TResult>(string pipelineName, TContext context) where TResult : class =>
         _pipelines.ExecuteBailAsync<TContext, TResult>(pipelineName, context);
 
+    /// <inheritdoc />
     public virtual IDisposable RegisterParallel<TContext>(string pipelineName, Func<TContext, Task> handler) =>
         _pipelines.RegisterParallel(pipelineName, handler);
 
+    /// <inheritdoc />
     public virtual Task ExecuteParallelAsync<TContext>(string pipelineName, TContext context) =>
         _pipelines.ExecuteParallelAsync(pipelineName, context);
 
+    /// <inheritdoc />
     public virtual IDisposable RegisterSerial<TContext>(string pipelineName, Func<TContext, Task> handler) =>
         _pipelines.RegisterSerial(pipelineName, handler);
 
+    /// <inheritdoc />
     public virtual Task ExecuteSerialAsync<TContext>(string pipelineName, TContext context) =>
         _pipelines.ExecuteSerialAsync(pipelineName, context);
 
-    // --- 4. Navigation Registry ---
+    // --- 4-11. Capability registries ---
 
-    public virtual IDisposable RegisterNavigationItem(NavigationItemDescriptor descriptor)
+    private IDisposable Register<T>(Registry<T> registry, T descriptor) where T : class
     {
         ArgumentNullException.ThrowIfNull(descriptor);
-        lock (_registryLock) { _navigationItems.Add(descriptor); }
-        NavigationItemsChanged?.Invoke();
+        registry.Add(descriptor);
+        NotifyChanged(registry.Kind);
 
         return RegisterEffect(() =>
         {
-            lock (_registryLock) { _navigationItems.Remove(descriptor); }
-            NavigationItemsChanged?.Invoke();
+            if (registry.Remove(descriptor))
+            {
+                NotifyChanged(registry.Kind);
+            }
         });
     }
 
-    public virtual IReadOnlyList<NavigationItemDescriptor> GetRegisteredNavigationItems()
+    /// <inheritdoc />
+    public virtual IDisposable RegisterNavigationItem(NavigationItemDescriptor descriptor) => Register(_navigationItems, descriptor);
+
+    /// <inheritdoc />
+    public virtual IReadOnlyList<NavigationItemDescriptor> GetRegisteredNavigationItems() => _navigationItems.Snapshot;
+
+    /// <inheritdoc />
+    public virtual IDisposable RegisterOverlay(OverlayDescriptor descriptor) => Register(_overlays, descriptor);
+
+    /// <inheritdoc />
+    public virtual IReadOnlyList<OverlayDescriptor> GetRegisteredOverlays() => _overlays.Snapshot;
+
+    /// <inheritdoc />
+    public virtual IDisposable RegisterCommand(CommandPaletteDescriptor descriptor) => Register(_commands, descriptor);
+
+    /// <inheritdoc />
+    public virtual IReadOnlyList<CommandPaletteDescriptor> GetRegisteredCommands() => _commands.Snapshot;
+
+    /// <inheritdoc />
+    public virtual IDisposable RegisterStatusBarWidget(StatusBarWidgetDescriptor descriptor) => Register(_statusBarWidgets, descriptor);
+
+    /// <inheritdoc />
+    public virtual IReadOnlyList<StatusBarWidgetDescriptor> GetRegisteredStatusBarWidgets() => _statusBarWidgets.Snapshot;
+
+    /// <inheritdoc />
+    public virtual IDisposable RegisterTool(ToolDescriptor descriptor) => Register(_tools, descriptor);
+
+    /// <inheritdoc />
+    public virtual IReadOnlyList<ToolDescriptor> GetRegisteredTools() => _tools.Snapshot;
+
+    /// <inheritdoc />
+    public virtual IDisposable RegisterRibbonTab(RibbonTabDescriptor descriptor) => Register(_ribbonTabs, descriptor);
+
+    /// <inheritdoc />
+    public virtual IReadOnlyList<RibbonTabDescriptor> GetRegisteredRibbonTabs() => _ribbonTabs.Snapshot;
+
+    /// <inheritdoc />
+    public virtual IDisposable RegisterSidebarTab(SidebarTabDescriptor descriptor) => Register(_sidebarTabs, descriptor);
+
+    /// <inheritdoc />
+    public virtual IReadOnlyList<SidebarTabDescriptor> GetRegisteredSidebarTabs() => _sidebarTabs.Snapshot;
+
+    /// <inheritdoc />
+    public virtual IDisposable RegisterInspectorSection(InspectorSectionDescriptor descriptor) => Register(_inspectors, descriptor);
+
+    /// <inheritdoc />
+    public virtual IReadOnlyList<InspectorSectionDescriptor> GetRegisteredInspectorSections() => _inspectors.Snapshot;
+
+    /// <inheritdoc />
+    public virtual IDisposable RegisterShortcut(ShortcutDescriptor descriptor) => Register(_shortcuts, descriptor);
+
+    /// <inheritdoc />
+    public virtual IReadOnlyList<ShortcutDescriptor> GetRegisteredShortcuts() => _shortcuts.Snapshot;
+
+    /// <inheritdoc />
+    public virtual IDisposable RegisterDialog(DialogDescriptor descriptor) => Register(_dialogs, descriptor);
+
+    /// <inheritdoc />
+    public virtual IReadOnlyList<DialogDescriptor> GetRegisteredDialogs() => _dialogs.Snapshot;
+
+    // --- Registry storage ---
+
+    private enum RegistryKind
     {
-        lock (_registryLock) { return _navigationItems.OrderBy(n => n.Order).ToList(); }
+        Navigation,
+        Overlays,
+        Commands,
+        StatusBar,
+        Tools,
+        Ribbon,
+        Sidebars,
+        Inspectors,
+        Shortcuts,
+        Dialogs
     }
 
-    // --- 5. Overlay Registry ---
-
-    public virtual IDisposable RegisterOverlay(OverlayDescriptor descriptor)
+    /// <summary>
+    /// Descriptors of one kind. Writes take a lock and rebuild an immutable snapshot (sorted by the order
+    /// key, if any, stably so equal orders keep registration order); reads just return the snapshot.
+    /// </summary>
+    private sealed class Registry<T> where T : class
     {
-        ArgumentNullException.ThrowIfNull(descriptor);
-        lock (_registryLock) { _overlays.Add(descriptor); }
-        OverlaysChanged?.Invoke();
+        private readonly object _lock = new();
+        private readonly List<T> _items = new();
+        private readonly Func<T, int>? _orderKey;
+        private IReadOnlyList<T> _snapshot = Array.Empty<T>();
 
-        return RegisterEffect(() =>
+        public Registry(RegistryKind kind, Func<T, int>? orderKey = null)
         {
-            lock (_registryLock) { _overlays.Remove(descriptor); }
-            OverlaysChanged?.Invoke();
-        });
-    }
+            Kind = kind;
+            _orderKey = orderKey;
+        }
 
-    public virtual IReadOnlyList<OverlayDescriptor> GetRegisteredOverlays()
-    {
-        lock (_registryLock) { return _overlays.ToList(); }
-    }
+        public RegistryKind Kind { get; }
 
-    // --- 6. Command Palette Registry ---
+        public IReadOnlyList<T> Snapshot => Volatile.Read(ref _snapshot);
 
-    public virtual IDisposable RegisterCommand(CommandPaletteDescriptor descriptor)
-    {
-        ArgumentNullException.ThrowIfNull(descriptor);
-        lock (_registryLock) { _commands.Add(descriptor); }
-        CommandsChanged?.Invoke();
-
-        return RegisterEffect(() =>
+        public void Add(T item)
         {
-            lock (_registryLock) { _commands.Remove(descriptor); }
-            CommandsChanged?.Invoke();
-        });
-    }
+            lock (_lock)
+            {
+                _items.Add(item);
+                Rebuild();
+            }
+        }
 
-    public virtual IReadOnlyList<CommandPaletteDescriptor> GetRegisteredCommands()
-    {
-        lock (_registryLock) { return _commands.ToList(); }
-    }
-
-    // --- 7. Status Bar Registry ---
-
-    public virtual IDisposable RegisterStatusBarWidget(StatusBarWidgetDescriptor descriptor)
-    {
-        ArgumentNullException.ThrowIfNull(descriptor);
-        lock (_registryLock) { _statusBarWidgets.Add(descriptor); }
-        StatusBarWidgetsChanged?.Invoke();
-
-        return RegisterEffect(() =>
+        public bool Remove(T item)
         {
-            lock (_registryLock) { _statusBarWidgets.Remove(descriptor); }
-            StatusBarWidgetsChanged?.Invoke();
-        });
-    }
+            lock (_lock)
+            {
+                if (!_items.Remove(item)) return false;
+                Rebuild();
+                return true;
+            }
+        }
 
-    public virtual IReadOnlyList<StatusBarWidgetDescriptor> GetRegisteredStatusBarWidgets()
-    {
-        lock (_registryLock) { return _statusBarWidgets.OrderBy(w => w.Order).ToList(); }
-    }
-
-    // --- 8. Tool Registry ---
-
-    public virtual IDisposable RegisterTool(ToolDescriptor descriptor)
-    {
-        ArgumentNullException.ThrowIfNull(descriptor);
-        lock (_registryLock) { _tools.Add(descriptor); }
-        ToolsChanged?.Invoke();
-
-        return RegisterEffect(() =>
+        private void Rebuild()
         {
-            lock (_registryLock) { _tools.Remove(descriptor); }
-            ToolsChanged?.Invoke();
-        });
+            var items = _orderKey == null ? _items.ToArray() : _items.OrderBy(_orderKey).ToArray();
+            Volatile.Write(ref _snapshot, new ReadOnlyCollection<T>(items));
+        }
     }
 
-    public virtual IReadOnlyList<ToolDescriptor> GetRegisteredTools()
-    {
-        lock (_registryLock) { return _tools.ToList(); }
-    }
+    /// <summary>
+    /// The plugin a scoped context was created for, or null for any other context.
+    /// </summary>
+    internal static IFryPlugin? GetOwningPlugin(IFryPluginContext ctx) =>
+        ctx is ScopedPluginContext scoped ? scoped.Scope.Plugin : null;
 
-    // --- 9. Ribbon Registry ---
-
-    public virtual IDisposable RegisterRibbonTab(RibbonTabDescriptor descriptor)
-    {
-        ArgumentNullException.ThrowIfNull(descriptor);
-        lock (_registryLock) { _ribbonTabs.Add(descriptor); }
-        RibbonChanged?.Invoke();
-
-        return RegisterEffect(() =>
-        {
-            lock (_registryLock) { _ribbonTabs.Remove(descriptor); }
-            RibbonChanged?.Invoke();
-        });
-    }
-
-    public virtual IReadOnlyList<RibbonTabDescriptor> GetRegisteredRibbonTabs()
-    {
-        lock (_registryLock) { return _ribbonTabs.OrderBy(r => r.Order).ToList(); }
-    }
-
-    // --- 10. Sidebars & Inspectors ---
-
-    public virtual IDisposable RegisterSidebarTab(SidebarTabDescriptor descriptor)
-    {
-        ArgumentNullException.ThrowIfNull(descriptor);
-        lock (_registryLock) { _sidebarTabs.Add(descriptor); }
-        SidebarsChanged?.Invoke();
-
-        return RegisterEffect(() =>
-        {
-            lock (_registryLock) { _sidebarTabs.Remove(descriptor); }
-            SidebarsChanged?.Invoke();
-        });
-    }
-
-    public virtual IReadOnlyList<SidebarTabDescriptor> GetRegisteredSidebarTabs()
-    {
-        lock (_registryLock) { return _sidebarTabs.OrderBy(s => s.Order).ToList(); }
-    }
-
-    public virtual IDisposable RegisterInspectorSection(InspectorSectionDescriptor descriptor)
-    {
-        ArgumentNullException.ThrowIfNull(descriptor);
-        lock (_registryLock) { _inspectors.Add(descriptor); }
-        InspectorsChanged?.Invoke();
-
-        return RegisterEffect(() =>
-        {
-            lock (_registryLock) { _inspectors.Remove(descriptor); }
-            InspectorsChanged?.Invoke();
-        });
-    }
-
-    public virtual IReadOnlyList<InspectorSectionDescriptor> GetRegisteredInspectorSections()
-    {
-        lock (_registryLock) { return _inspectors.OrderBy(i => i.Order).ToList(); }
-    }
-
-    // --- 11. Shortcuts & Dialogs ---
-
-    public virtual IDisposable RegisterShortcut(ShortcutDescriptor descriptor)
-    {
-        ArgumentNullException.ThrowIfNull(descriptor);
-        lock (_registryLock) { _shortcuts.Add(descriptor); }
-        ShortcutsChanged?.Invoke();
-
-        return RegisterEffect(() =>
-        {
-            lock (_registryLock) { _shortcuts.Remove(descriptor); }
-            ShortcutsChanged?.Invoke();
-        });
-    }
-
-    public virtual IReadOnlyList<ShortcutDescriptor> GetRegisteredShortcuts()
-    {
-        lock (_registryLock) { return _shortcuts.ToList(); }
-    }
-
-    public virtual IDisposable RegisterDialog(DialogDescriptor descriptor)
-    {
-        ArgumentNullException.ThrowIfNull(descriptor);
-        lock (_registryLock) { _dialogs.Add(descriptor); }
-        DialogsChanged?.Invoke();
-
-        return RegisterEffect(() =>
-        {
-            lock (_registryLock) { _dialogs.Remove(descriptor); }
-            DialogsChanged?.Invoke();
-        });
-    }
-
-    public virtual IReadOnlyList<DialogDescriptor> GetRegisteredDialogs()
-    {
-        lock (_registryLock) { return _dialogs.ToList(); }
-    }
+    /// <summary>Contract types of every service currently registered, for leak checks in tests.</summary>
+    internal IReadOnlyCollection<Type> RegisteredServiceTypes => _services.Keys.ToList();
 
     // --- Inner Scoped Context ---
 
@@ -369,6 +488,8 @@ public class FryPluginContext : IFryPluginContext
     {
         private readonly FryPluginContext _parent;
         private readonly PluginScope _scope;
+
+        public PluginScope Scope => _scope;
 
         public IPipelineManager Pipelines => _parent.Pipelines;
 
@@ -395,7 +516,7 @@ public class FryPluginContext : IFryPluginContext
         public void RegisterService(Type serviceType, object implementation)
         {
             _parent.RegisterService(serviceType, implementation);
-            _scope.RegisterEffect(() => _parent._services.TryRemove(serviceType, out _));
+            _scope.RegisterEffect(() => _parent.RemoveServiceRegistration(serviceType, implementation));
         }
 
         public TService GetService<TService>() where TService : class => _parent.GetService<TService>();
@@ -490,7 +611,7 @@ public class FryPluginContext : IFryPluginContext
 
         public void Dispose()
         {
-            var act = System.Threading.Interlocked.Exchange(ref _action, null);
+            var act = Interlocked.Exchange(ref _action, null);
             act?.Invoke();
         }
     }

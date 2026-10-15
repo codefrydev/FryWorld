@@ -12,12 +12,15 @@ namespace FryWorld.Sdk.Profiles;
 /// </summary>
 public sealed class PluginProfile
 {
+    /// <summary>Name of the profile.</summary>
     [JsonPropertyName("profileName")]
     public string ProfileName { get; set; } = "default";
 
+    /// <summary>Bundles to load; all bundles when empty.</summary>
     [JsonPropertyName("enabledBundles")]
     public List<string> EnabledBundles { get; set; } = new();
 
+    /// <summary>Plugins to leave out, even when their bundle is enabled.</summary>
     [JsonPropertyName("disabledPlugins")]
     public List<string> DisabledPlugins { get; set; } = new();
 }
@@ -27,6 +30,7 @@ public sealed class PluginProfile
 /// </summary>
 public static class ProfileLoader
 {
+    /// <summary>Reads a profile from JSON; an empty profile when the file does not exist.</summary>
     public static PluginProfile LoadFromFile(string filePath)
     {
         if (!File.Exists(filePath))
@@ -38,6 +42,7 @@ public static class ProfileLoader
         return JsonSerializer.Deserialize<PluginProfile>(json) ?? new PluginProfile();
     }
 
+    /// <summary>Registers the plugins of the enabled bundles with <paramref name="host"/>, except disabled ones.</summary>
     public static void ApplyProfile(PluginProfile profile, PluginHost host, IEnumerable<IFryPluginBundle> availableBundles)
     {
         ArgumentNullException.ThrowIfNull(profile);

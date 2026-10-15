@@ -1,0 +1,9 @@
+{
+  "id": "com.fryworld.tests.fixture",
+  "name": "Fixture Plugin",
+  "version": "1.2.3",
+  "author": "Code Fry Dev",
+  "description": "Test fixture plugin used by FryWorld.Sdk.Tests.",
+  "entryPoint": "FryWorld.Sdk.FixturePlugin.dll",
+  "isCollectible": true
+}

@@ -1,12 +1,9 @@
 using System;
-using System.IO;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
-using FryWorld.Sdk.Loading;
-using FryWorld.Sdk.Marketplace;
+using FryWorld.Sdk.Hosting;
 using FryWorld.Sdk.Plugins;
 using FryWorld.Sdk.Services;
 using FryWorld.Services;
@@ -48,8 +45,6 @@ public partial class App : Application
         ConfigureServices(services);
         Services = services.BuildServiceProvider();
 
-        InitializePlugins();
-
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var mainVm = Services.GetRequiredService<MainViewModel>();
@@ -59,67 +54,30 @@ public partial class App : Application
             };
         }
 
+        // Plugins load in the background, after the window exists, so it appears immediately.
+        Services.GetRequiredService<PluginStartup>().Start();
+
         base.OnFrameworkInitializationCompleted();
     }
 
     private static void ConfigureServices(IServiceCollection services)
     {
-        // Core Microkernel Host
-        services.AddSingleton<PluginHost>(sp => new PluginHost(new FryPluginContext(fallbackServiceProvider: sp)));
-
         // Foundation Services
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<INotificationService, NotificationService>();
-        services.AddSingleton<ISettingsManager, SettingsManager>();
+        services.AddSingleton<IShellService, ShellService>();
 
-        // Marketplace Service
-        services.AddSingleton<IPluginMarketplaceService>(sp =>
-            new PluginMarketplaceService(
-                sp.GetRequiredService<PluginHost>(),
-                FryWorldPaths.PluginsDirectory));
+        // Plugin runtime: host, marketplace, settings (same settings.json as before) and background startup
+        services.AddFryWorldPluginHost(o =>
+        {
+            o.PluginsDirectory = FryWorldPaths.PluginsDirectory;
+            o.SettingsFilePath = FryWorldPaths.SettingsFilePath;
+            o.HostVersion = typeof(App).Assembly.GetName().Version;
+            o.Host.Logger = AppLogService.Instance.CreateLogger("Plugins");
+            o.Host.EventSynchronizationContext = new UiThreadSynchronizationContext();
+        });
 
         // Master ViewModels
         services.AddSingleton<MainViewModel>();
-    }
-
-    private static void InitializePlugins()
-    {
-        var host = Services.GetRequiredService<PluginHost>();
-        var pluginsDir = FryWorldPaths.PluginsDirectory;
-
-        try
-        {
-            if (Directory.Exists(pluginsDir))
-            {
-                var packages = PluginAssemblyLoader.DiscoverAndLoadDirectory(pluginsDir);
-                foreach (var pkg in packages)
-                {
-                    foreach (var plugin in pkg.Plugins)
-                    {
-                        try
-                        {
-                            host.RegisterPlugin(plugin);
-                        }
-                        catch { }
-                    }
-                }
-            }
-
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await host.StartAsync();
-                }
-                catch (Exception ex)
-                {
-                    AppLogService.Instance.LogWarning("PluginHost", "Background mount error", ex);
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            AppLogService.Instance.LogError("App", "Error during plugin initialization", ex);
-        }
     }
 }

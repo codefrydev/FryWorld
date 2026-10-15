@@ -10,13 +10,21 @@ namespace FryWorld.Sdk.Models;
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum PluginSettingType
 {
+    /// <summary>Free text.</summary>
     String,
+    /// <summary>On/off switch.</summary>
     Boolean,
+    /// <summary>Whole number, optionally bounded by <see cref="PluginSettingDefinition.MinValue"/> and <see cref="PluginSettingDefinition.MaxValue"/>.</summary>
     Integer,
+    /// <summary>Decimal number, optionally bounded and stepped.</summary>
     Double,
+    /// <summary>One of <see cref="PluginSettingDefinition.Options"/>.</summary>
     Select,
+    /// <summary>Path to a file, picked with a file dialog.</summary>
     FilePath,
+    /// <summary>Path to a folder, picked with a folder dialog.</summary>
     DirectoryPath,
+    /// <summary>Colour as #RRGGBB or #AARRGGBB.</summary>
     Color
 }
 
@@ -26,27 +34,35 @@ public enum PluginSettingType
 /// </summary>
 public sealed class PluginSettingDefinition
 {
+    /// <summary>What kind of value it is; decides the form control.</summary>
     [JsonPropertyName("type")]
     public PluginSettingType Type { get; set; } = PluginSettingType.String;
 
+    /// <summary>Label shown next to the control.</summary>
     [JsonPropertyName("label")]
     public string Label { get; set; } = string.Empty;
 
+    /// <summary>Help text shown under the control.</summary>
     [JsonPropertyName("description")]
     public string Description { get; set; } = string.Empty;
 
+    /// <summary>Value used until the user changes it. A CLR value in code, a JSON value in plugin.json.</summary>
     [JsonPropertyName("default")]
     public object? DefaultValue { get; set; }
 
+    /// <summary>Choices for a <see cref="PluginSettingType.Select"/> setting.</summary>
     [JsonPropertyName("options")]
     public List<string>? Options { get; set; }
 
+    /// <summary>Smallest allowed number.</summary>
     [JsonPropertyName("min")]
     public double? MinValue { get; set; }
 
+    /// <summary>Largest allowed number.</summary>
     [JsonPropertyName("max")]
     public double? MaxValue { get; set; }
 
+    /// <summary>Increment for number controls.</summary>
     [JsonPropertyName("step")]
     public double? Step { get; set; }
 }

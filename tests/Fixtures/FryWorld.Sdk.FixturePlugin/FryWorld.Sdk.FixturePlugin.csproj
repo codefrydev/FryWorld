@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    A real plugin built the way external plugins are built: it compiles against FryWorld.Sdk but does not
+    ship it (Private="false" is the project-reference form of PrivateAssets="all"). The SDK tests load its
+    output from disk into a collectible load context, so loading and unloading are exercised for real.
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>FryWorld.Sdk.FixturePlugin</AssemblyName>
+    <RootNamespace>FryWorld.Sdk.FixturePlugin</RootNamespace>
+    <Version>1.2.3</Version>
+    <!-- Package on every build, so the tests can inspect the .fryplugin the SDK targets produce. -->
+    <FryPluginPackageOnBuild>true</FryPluginPackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\FryWorld.Sdk\FryWorld.Sdk.csproj" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="plugin.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- What a NuGet reference to FryWorld.Sdk imports automatically; a project reference has to import it. -->
+  <Import Project="..\..\..\src\FryWorld.Sdk\build\FryWorld.Sdk.targets" />
+</Project>

@@ -401,8 +401,10 @@ public partial class LauncherHomeViewModel : ViewModelBase
                         });
                     });
                 }
-                catch
+                catch (Exception ex) when (ex is not FryWorld.Sdk.Plugins.PluginException)
                 {
+                    // Offline or the download failed: fall back to a package placed next to the app. A failed
+                    // checksum (PluginException) is not retried this way; it is shown to the user.
                     packagePath = TryResolveSideloadPackage(card.Id);
                 }
             }

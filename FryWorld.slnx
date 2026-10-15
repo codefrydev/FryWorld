@@ -6,6 +6,10 @@
   <Folder Name="/tests/">
     <Project Path="tests/FryWorld.Sdk.Tests/FryWorld.Sdk.Tests.csproj" />
     <Project Path="tests/FryWorld.Tests/FryWorld.Tests.csproj" />
+    <Project Path="tests/FryWorld.Sdk.Benchmarks/FryWorld.Sdk.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/tests/Fixtures/">
+    <Project Path="tests/Fixtures/FryWorld.Sdk.FixturePlugin/FryWorld.Sdk.FixturePlugin.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/UiSnapshots/UiSnapshots.csproj" />

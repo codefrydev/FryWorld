@@ -4,8 +4,10 @@ using System.Linq;
 using Avalonia.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using FryWorld.Sdk.Descriptors;
+using FryWorld.Sdk.Hosting;
 using FryWorld.Sdk.Plugins;
 using FryWorld.Tests.TestSupport;
+using FryWorld.Services;
 using FryWorld.ViewModels;
 using FryWorld.Views;
 using Xunit;
@@ -138,13 +140,13 @@ public class MainWindowHeadlessTests
             var mainVm = App.Services.GetRequiredService<MainViewModel>();
             var host = App.Services.GetRequiredService<PluginHost>();
 
-            // Wait for background mounting to finish
-            for (int i = 0; i < 50; i++)
+            // Wait for background loading and mounting to finish
+            var startup = App.Services.GetRequiredService<PluginStartup>().Completion;
+            for (int i = 0; i < 400 && !startup.IsCompleted; i++)
             {
-                if (host.GetRegisteredPlugins().All(p => host.GetPluginState(p.Id) == PluginLifecycleState.Active))
-                    break;
-                TestHeadlessSession.Settle(4);
+                TestHeadlessSession.Settle(1);
             }
+            Assert.True(startup.IsCompleted, "Plugins did not finish loading within the test timeout.");
 
             mainVm.NavigateToPlugin("com.fryworld.imageeditor");
             TestHeadlessSession.Settle(10);

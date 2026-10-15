@@ -30,4 +30,9 @@ crash-reports/
 /plugins/
 /src/FryWorld/plugins/
 *.fryplugin
+# Published plugins kept as SDK backward-compatibility fixtures
+!tests/Fixtures/Legacy/*.fryplugin
 user_settings.json
+
+# BenchmarkDotNet output
+BenchmarkDotNet.Artifacts/

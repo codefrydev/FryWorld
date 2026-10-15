@@ -31,6 +31,36 @@
     <!-- Content List -->
     <ScrollViewer Grid.Row="1" Padding="24">
       <StackPanel Spacing="16">
+        <!-- Problems: why a plugin did not load or mount -->
+        <Border Classes="launcher-card" IsVisible="{Binding HasProblems}">
+          <StackPanel Spacing="12">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <material:MaterialIcon Grid.Column="0" Kind="AlertCircleOutline" Width="20" Height="20"
+                                     Foreground="{DynamicResource M3ErrorBrush}" VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1" Text="Problems" FontSize="16" FontWeight="Bold" Margin="10,0,0,0"
+                         Foreground="{DynamicResource M3OnSurfaceBrush}" VerticalAlignment="Center" />
+              <Button Grid.Column="2" Command="{Binding ClearProblemsCommand}" Classes="icon-btn" ToolTip.Tip="Clear">
+                <material:MaterialIcon Kind="Close" Width="16" Height="16" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              </Button>
+            </Grid>
+
+            <ItemsControl ItemsSource="{Binding Problems}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:PluginProblemViewModel">
+                  <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,10" ToolTip.Tip="{Binding Details}">
+                    <material:MaterialIcon Grid.Column="0" Kind="{Binding IconKind}" Width="16" Height="16" VerticalAlignment="Top" Margin="0,2,0,0"
+                                           Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                    <StackPanel Grid.Column="1" Spacing="2" Margin="10,0,0,0">
+                      <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                      <TextBlock Text="{Binding Message}" FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
         <TextBlock Text="Installed Plugins" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
 
         <ItemsControl ItemsSource="{Binding InstalledPlugins}">

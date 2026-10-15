@@ -9,12 +9,19 @@ namespace FryWorld.Sdk.Descriptors;
 /// </summary>
 public sealed class NavigationItemDescriptor
 {
+    /// <summary>Unique id; used with <c>IShellService.NavigateTo</c>.</summary>
     public required string Id { get; init; }
+    /// <summary>Name shown in the navigation rail.</summary>
     public required string Title { get; init; }
+    /// <summary>Tooltip text.</summary>
     public string? Tooltip { get; init; }
+    /// <summary>Material icon kind.</summary>
     public string? IconKind { get; init; }
+    /// <summary>Accent colour as #RRGGBB.</summary>
     public string? AccentColor { get; init; }
+    /// <summary>Position in the rail; lower comes first.</summary>
     public int Order { get; init; } = 100;
+    /// <summary>Group it is listed under.</summary>
     public string? Category { get; init; }
 
     /// <summary>

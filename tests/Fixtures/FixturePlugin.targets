@@ -1,0 +1,25 @@
+<Project>
+  <!--
+    Import from a test or benchmark project to build the fixture plugin and copy its output to
+    fixtures/FixturePlugin/ next to the project's own assembly. The plugin is built but never referenced,
+    so it can only be reached by loading it from disk, the way the host loads an installed plugin.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="$(MSBuildThisFileDirectory)FryWorld.Sdk.FixturePlugin\FryWorld.Sdk.FixturePlugin.csproj"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <Target Name="CopyFixturePlugin" AfterTargets="Build">
+    <MSBuild Projects="$(MSBuildThisFileDirectory)FryWorld.Sdk.FixturePlugin\FryWorld.Sdk.FixturePlugin.csproj"
+             Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="_FixturePluginTargetPath" />
+    </MSBuild>
+    <ItemGroup>
+      <_FixturePluginFiles Include="%(_FixturePluginTargetPath.RootDir)%(_FixturePluginTargetPath.Directory)*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_FixturePluginFiles)"
+          DestinationFolder="$(OutDir)fixtures/FixturePlugin"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-VERSION="${1:-1.0.0}"
+VERSION="${1:-0.1.0}"
 OUTPUT_DIR="${2:-./artifacts}"
 
 echo "=================================================="

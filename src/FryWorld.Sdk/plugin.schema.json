@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/codefrydev/FryWorld/main/src/FryWorld.Sdk/plugin.schema.json",
+  "title": "FryWorld plugin manifest (plugin.json)",
+  "description": "Describes a FryWorld plugin package. Ships at the root of every .fryplugin archive.",
+  "type": "object",
+  "required": ["id", "name", "version"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": {
+      "description": "Unique, stable identifier in reverse-domain form. Used as the install folder name, so only letters, digits, '.', '-' and '_' are allowed, starting and ending with a letter or digit.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9]([A-Za-z0-9_.-]*[A-Za-z0-9])?$",
+      "examples": ["com.example.mystudio"]
+    },
+    "name": { "description": "Display name.", "type": "string", "minLength": 1 },
+    "version": {
+      "description": "Semantic version. The SDK build targets overwrite it with the project's Version property.",
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]+){1,3}([-+][0-9A-Za-z.-]+)?$",
+      "examples": ["1.0.0", "2.1.0-beta.1"]
+    },
+    "author": { "type": "string" },
+    "description": { "type": "string" },
+    "entryPoint": {
+      "description": "File name of the assembly holding the plugin, relative to plugin.json. The SDK build targets fill it in when empty.",
+      "type": "string",
+      "examples": ["MyStudioPlugin.dll"]
+    },
+    "entryType": {
+      "description": "Full name of the IFryPlugin type in entryPoint. Optional; lets the host skip scanning the assembly.",
+      "type": "string",
+      "examples": ["Example.MyStudio.MyStudioPlugin"]
+    },
+    "icon": { "description": "Material icon kind, e.g. \"CodeBraces\".", "type": "string" },
+    "iconColor": { "description": "Accent colour as #RRGGBB.", "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+    "category": { "type": "string" },
+    "websiteUrl": { "type": "string", "format": "uri" },
+    "repositoryUrl": { "type": "string", "format": "uri" },
+    "dependencies": {
+      "description": "Ids of plugins this plugin needs.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "isCollectible": {
+      "description": "Whether the plugin can be unloaded without restarting the host. Set false for plugins that cannot unload, such as those hosting Roslyn scripting.",
+      "type": "boolean",
+      "default": true
+    },
+    "releaseNotes": { "type": "string" },
+    "minHostVersion": { "description": "Oldest host version the plugin runs on.", "type": "string" },
+    "maxHostVersion": { "description": "Newest host version the plugin is known to run on.", "type": "string" },
+    "sdkVersion": { "description": "FryWorld.Sdk version the plugin was built against. Stamped by the build.", "type": "string" },
+    "targetFramework": { "description": "Target framework the plugin was built for. Stamped by the build.", "type": "string", "examples": ["net10.0"] },
+    "settingsSchema": {
+      "description": "User settings, shown as a generated form in the host's plugin manager.",
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/setting" }
+    }
+  },
+  "definitions": {
+    "setting": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["string", "boolean", "integer", "double", "select", "filePath", "directoryPath", "color",
+                   "String", "Boolean", "Integer", "Double", "Select", "FilePath", "DirectoryPath", "Color"]
+        },
+        "label": { "type": "string" },
+        "description": { "type": "string" },
+        "default": {},
+        "options": { "description": "Choices for a select setting.", "type": "array", "items": { "type": "string" } },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "step": { "type": "number" }
+      }
+    }
+  }
+}

@@ -5,7 +5,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using FryWorld.Sdk.Descriptors;
+using FryWorld.Sdk.Pipelines;
+using Microsoft.Extensions.Logging;
 
 namespace FryWorld.Sdk.Plugins;
 
@@ -14,10 +15,23 @@ namespace FryWorld.Sdk.Plugins;
 /// </summary>
 public sealed class PluginRegistrationEntry
 {
+    /// <summary>The plugin instance.</summary>
     public required IFryPlugin Plugin { get; init; }
+
+    /// <summary>Where the plugin is in its lifecycle.</summary>
     public PluginLifecycleState State { get; set; } = PluginLifecycleState.Registered;
-    public PluginScope Scope { get; } = new();
+
+    /// <summary>
+    /// The scope holding the plugin's registrations for its current mount. A new scope is created for
+    /// every mount, so a plugin can be unmounted and mounted again.
+    /// </summary>
+    public PluginScope Scope { get; internal set; } = new();
+
+    /// <summary>Why the plugin last failed to mount or unmount, if it did.</summary>
     public Exception? FailureError { get; set; }
+
+    /// <summary>How long the plugin's last <see cref="IFryPlugin.ApplyAsync"/> took, or null if it has not mounted.</summary>
+    public TimeSpan? MountDuration { get; internal set; }
 }
 
 /// <summary>
@@ -28,16 +42,58 @@ public sealed class PluginHost : IAsyncDisposable, IDisposable
 {
     private readonly ConcurrentDictionary<string, PluginRegistrationEntry> _plugins = new(StringComparer.OrdinalIgnoreCase);
     private readonly FryPluginContext _rootContext;
+    private readonly ILogger _logger;
+    private readonly PluginHostOptions _options;
     private readonly object _lifecycleLock = new();
+
+    // Plugin ids in the order they became active, so teardown runs in reverse.
+    private readonly List<string> _mountOrder = new();
+    private readonly List<PluginLoadDiagnostic> _diagnostics = new();
     private bool _isDisposed;
 
+    /// <summary>The root context every plugin's registrations land in.</summary>
     public IFryPluginContext Context => _rootContext;
 
+    /// <summary>Raised whenever a plugin changes lifecycle state.</summary>
     public event Action<IFryPlugin, PluginLifecycleState>? PluginStateChanged;
 
+    /// <summary>Raised for every problem found while ordering, mounting or unmounting plugins.</summary>
+    public event Action<PluginLoadDiagnostic>? DiagnosticReported;
+
+    /// <summary>Creates a host. When <paramref name="rootContext"/> is null, the host creates its own.</summary>
     public PluginHost(FryPluginContext? rootContext = null)
+        : this(rootContext, new PluginHostOptions())
     {
-        _rootContext = rootContext ?? new FryPluginContext();
+    }
+
+    /// <summary>Creates a host with the given options. When <paramref name="rootContext"/> is null, the host creates its own.</summary>
+    public PluginHost(FryPluginContext? rootContext, PluginHostOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        if (options.MountConcurrency < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), options.MountConcurrency, "MountConcurrency must be at least 1.");
+        }
+
+        _options = options;
+        _logger = options.Logger;
+        _rootContext = rootContext ?? new FryPluginContext(pipelines: new PipelineManager(_logger));
+
+        if (options.EventSynchronizationContext != null)
+        {
+            _rootContext.NotificationContext = options.EventSynchronizationContext;
+        }
+    }
+
+    /// <summary>
+    /// Everything that went wrong, or nearly did, while this host ordered, mounted and unmounted plugins.
+    /// </summary>
+    public IReadOnlyList<PluginLoadDiagnostic> Diagnostics
+    {
+        get
+        {
+            lock (_diagnostics) return _diagnostics.ToList();
+        }
     }
 
     /// <summary>
@@ -73,7 +129,8 @@ public sealed class PluginHost : IAsyncDisposable, IDisposable
         {
             if (entry.State == PluginLifecycleState.Active)
             {
-                try { entry.Scope.Dispose(); } catch { }
+                entry.Scope.Dispose();
+                lock (_lifecycleLock) _mountOrder.Remove(entry.Plugin.Id);
             }
             entry.State = PluginLifecycleState.Unloaded;
             PluginStateChanged?.Invoke(entry.Plugin, PluginLifecycleState.Unloaded);
@@ -96,58 +153,150 @@ public sealed class PluginHost : IAsyncDisposable, IDisposable
     }
 
     /// <summary>
+    /// Gets the host's record of a registered plugin, including why it failed if it did.
+    /// </summary>
+    public PluginRegistrationEntry? GetRegistration(string pluginId)
+    {
+        return _plugins.TryGetValue(pluginId, out var entry) ? entry : null;
+    }
+
+    /// <summary>
     /// Sorts all currently registered plugins topologically based on their declarative service requirements,
     /// and mounts them asynchronously into the context.
     /// </summary>
     public async Task StartAsync(CancellationToken ct = default)
     {
-        List<IFryPlugin> sortedPlugins;
+        List<List<IFryPlugin>> layers;
+        IReadOnlyList<IFryPlugin> unresolved;
         lock (_lifecycleLock)
         {
-            sortedPlugins = TopologicalSort(_plugins.Values.Select(e => e.Plugin).ToList());
+            layers = TopologicalLayers(_plugins.Values.Select(e => e.Plugin).ToList(), out unresolved);
         }
 
-        foreach (var plugin in sortedPlugins)
+        if (unresolved.Count > 0)
+        {
+            var ids = string.Join(", ", unresolved.Select(p => p.Id));
+            Report(new PluginLoadDiagnostic(
+                PluginLoadStage.DependencyResolution,
+                PluginDiagnosticSeverity.Warning,
+                $"The service requirements of these plugins form a cycle, so they mount in an arbitrary order and may fail: {ids}.",
+                Exception: new PluginCircularDependencyException($"Cyclic service requirements among: {ids}.")));
+        }
+
+        // Every plugin in a layer depends only on plugins in earlier layers, so a layer's plugins can mount
+        // together once the layer before it has finished.
+        foreach (var layer in layers)
         {
             ct.ThrowIfCancellationRequested();
-            await MountPluginAsync(plugin, ct);
+
+            if (_options.MountConcurrency == 1 || layer.Count == 1)
+            {
+                foreach (var plugin in layer)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await MountPluginAsync(plugin, ct);
+                }
+            }
+            else
+            {
+                await Parallel.ForEachAsync(
+                    layer,
+                    new ParallelOptions { MaxDegreeOfParallelism = _options.MountConcurrency, CancellationToken = ct },
+                    async (plugin, token) => await MountPluginAsync(plugin, token));
+            }
         }
     }
 
     /// <summary>
-    /// Mounts an individual plugin.
+    /// Mounts an individual plugin. If the plugin fails, every registration it made before failing is
+    /// rolled back and the plugin is left in <see cref="PluginLifecycleState.Failed"/>.
     /// </summary>
     public async Task MountPluginAsync(IFryPlugin plugin, CancellationToken ct = default)
     {
-        if (!_plugins.TryGetValue(plugin.Id, out var entry))
+        ArgumentNullException.ThrowIfNull(plugin);
+
+        PluginRegistrationEntry entry;
+        lock (_lifecycleLock)
         {
-            entry = new PluginRegistrationEntry { Plugin = plugin };
-            _plugins[plugin.Id] = entry;
+            entry = _plugins.GetOrAdd(plugin.Id, _ => new PluginRegistrationEntry { Plugin = plugin });
+
+            if (entry.State is PluginLifecycleState.Active or PluginLifecycleState.Mounting)
+            {
+                return;
+            }
+
+            // A scope is single-use: one that an earlier mount or failure disposed cannot hold new effects.
+            if (entry.Scope.IsDisposed)
+            {
+                entry.Scope = new PluginScope();
+            }
+
+            entry.Scope.Plugin = plugin;
+            var pluginId = plugin.Id;
+            entry.Scope.EffectErrorSink = ex => Report(new PluginLoadDiagnostic(
+                PluginLoadStage.Unmount, PluginDiagnosticSeverity.Error,
+                "A cleanup effect threw while the plugin's registrations were being rolled back.",
+                PluginId: pluginId, Exception: ex));
+
+            entry.State = PluginLifecycleState.Mounting;
+            entry.FailureError = null;
         }
 
-        if (entry.State == PluginLifecycleState.Active)
-        {
-            return;
-        }
-
-        entry.State = PluginLifecycleState.Mounting;
-        PluginStateChanged?.Invoke(plugin, entry.State);
+        PluginStateChanged?.Invoke(plugin, PluginLifecycleState.Mounting);
 
         try
         {
+            foreach (var required in plugin.RequiredServices)
+            {
+                if (!_rootContext.HasService(required))
+                {
+                    throw new PluginMissingDependencyException(plugin.Id, required);
+                }
+            }
+
             // Scoped context forwarding registrations and effects to the plugin's dedicated scope
             var scopedContext = _rootContext.CreateScopedContext(entry.Scope);
-            await plugin.ApplyAsync(scopedContext, ct);
+            var stopwatch = Stopwatch.StartNew();
 
-            entry.State = PluginLifecycleState.Active;
-            PluginStateChanged?.Invoke(plugin, entry.State);
+            // One change event per registry once the plugin is in, not one per registration.
+            using (_rootContext.DeferChangeNotifications())
+            {
+                await plugin.ApplyAsync(scopedContext, ct);
+            }
+
+            entry.MountDuration = stopwatch.Elapsed;
+            if (stopwatch.Elapsed > _options.SlowMountThreshold)
+            {
+                Report(new PluginLoadDiagnostic(
+                    PluginLoadStage.Mount, PluginDiagnosticSeverity.Warning,
+                    $"Took {stopwatch.Elapsed.TotalMilliseconds:F0} ms to mount, which delays every plugin after it. " +
+                    "Move slow work out of ApplyAsync, for example into the view factory or a background task.",
+                    PluginId: plugin.Id));
+            }
+
+            lock (_lifecycleLock)
+            {
+                entry.State = PluginLifecycleState.Active;
+                _mountOrder.Remove(plugin.Id);
+                _mountOrder.Add(plugin.Id);
+            }
+            PluginStateChanged?.Invoke(plugin, PluginLifecycleState.Active);
         }
         catch (Exception ex)
         {
+            // Roll back whatever the plugin registered before it failed, so it leaves nothing behind.
+            using (_rootContext.DeferChangeNotifications())
+            {
+                entry.Scope.Dispose();
+            }
+
             entry.State = PluginLifecycleState.Failed;
             entry.FailureError = ex;
-            PluginStateChanged?.Invoke(plugin, entry.State);
-            Debug.WriteLine($"[PluginHost] Failed to mount plugin '{plugin.Id}': {ex}");
+            Report(new PluginLoadDiagnostic(
+                PluginLoadStage.Mount, PluginDiagnosticSeverity.Error,
+                ex is PluginMissingDependencyException ? ex.Message : $"The plugin failed to mount: {ex.Message}",
+                PluginId: plugin.Id, Exception: ex));
+            PluginStateChanged?.Invoke(plugin, PluginLifecycleState.Failed);
         }
     }
 
@@ -166,7 +315,10 @@ public sealed class PluginHost : IAsyncDisposable, IDisposable
 
         try
         {
-            entry.Scope.Dispose();
+            using (_rootContext.DeferChangeNotifications())
+            {
+                entry.Scope.Dispose();
+            }
             entry.State = PluginLifecycleState.Unloaded;
             PluginStateChanged?.Invoke(entry.Plugin, entry.State);
         }
@@ -174,9 +326,13 @@ public sealed class PluginHost : IAsyncDisposable, IDisposable
         {
             entry.State = PluginLifecycleState.Failed;
             entry.FailureError = ex;
+            Report(new PluginLoadDiagnostic(
+                PluginLoadStage.Unmount, PluginDiagnosticSeverity.Error,
+                $"The plugin failed to unmount: {ex.Message}", PluginId: pluginId, Exception: ex));
             PluginStateChanged?.Invoke(entry.Plugin, entry.State);
         }
 
+        lock (_lifecycleLock) _mountOrder.Remove(entry.Plugin.Id);
         _plugins.TryRemove(pluginId, out _);
 
         return Task.CompletedTask;
@@ -184,10 +340,19 @@ public sealed class PluginHost : IAsyncDisposable, IDisposable
 
     /// <summary>
     /// Solves dependency ordering via Kahn's Directed Acyclic Graph (DAG) algorithm.
+    /// Plugins caught in a dependency cycle are appended at the end in their original order.
     /// </summary>
-    public static List<IFryPlugin> TopologicalSort(IReadOnlyList<IFryPlugin> plugins)
+    public static List<IFryPlugin> TopologicalSort(IReadOnlyList<IFryPlugin> plugins) =>
+        TopologicalLayers(plugins, out _).SelectMany(layer => layer).ToList();
+
+    /// <summary>
+    /// Groups plugins into layers: each plugin's providers are all in earlier layers. Plugins caught in a
+    /// cycle form a final layer, in their original order, and are returned in <paramref name="unresolved"/>.
+    /// </summary>
+    private static List<List<IFryPlugin>> TopologicalLayers(IReadOnlyList<IFryPlugin> plugins, out IReadOnlyList<IFryPlugin> unresolved)
     {
-        var result = new List<IFryPlugin>();
+        var layers = new List<List<IFryPlugin>>();
+        var placed = 0;
         var inDegree = new Dictionary<IFryPlugin, int>();
         var graph = new Dictionary<IFryPlugin, List<IFryPlugin>>();
 
@@ -225,48 +390,88 @@ public sealed class PluginHost : IAsyncDisposable, IDisposable
             }
         }
 
-        // Queue all nodes with 0 dependencies
-        var queue = new Queue<IFryPlugin>(plugins.Where(p => inDegree[p] == 0));
-        while (queue.Count > 0)
+        // Kahn's algorithm, one layer at a time: a layer is every plugin whose providers have all been placed.
+        var current = plugins.Where(p => inDegree[p] == 0).ToList();
+        while (current.Count > 0)
         {
-            var node = queue.Dequeue();
-            result.Add(node);
+            layers.Add(current);
+            placed += current.Count;
 
-            foreach (var dependent in graph[node])
+            var next = new List<IFryPlugin>();
+            foreach (var node in current)
             {
-                inDegree[dependent]--;
-                if (inDegree[dependent] == 0)
+                foreach (var dependent in graph[node])
                 {
-                    queue.Enqueue(dependent);
+                    inDegree[dependent]--;
+                    if (inDegree[dependent] == 0)
+                    {
+                        next.Add(dependent);
+                    }
                 }
             }
+
+            // Keep registration order within a layer.
+            current = plugins.Where(next.Contains).ToList();
         }
 
         // If cycle detected, append remaining nodes to allow graceful degradation
-        if (result.Count < plugins.Count)
+        if (placed < plugins.Count)
         {
-            var unvisited = plugins.Except(result).ToList();
-            Debug.WriteLine($"[PluginHost] Warning: Cyclic or unresolved dependency graph among {unvisited.Count} plugins.");
-            result.AddRange(unvisited);
+            var placedSet = layers.SelectMany(l => l).ToHashSet();
+            var remaining = plugins.Where(p => !placedSet.Contains(p)).ToList();
+            Debug.WriteLine($"[PluginHost] Warning: Cyclic or unresolved dependency graph among {remaining.Count} plugins.");
+            layers.Add(remaining);
+            unresolved = remaining;
+        }
+        else
+        {
+            unresolved = Array.Empty<IFryPlugin>();
         }
 
-        return result;
+        return layers;
     }
 
-    private static void BindScopedRegistries(FryPluginContext source, FryPluginContext target, PluginScope scope)
+    /// <summary>
+    /// Adds a diagnostic found outside the host, such as a package that failed to load from disk, so that
+    /// <see cref="Diagnostics"/> is the one place a UI needs to look. Raises <see cref="DiagnosticReported"/>.
+    /// </summary>
+    public void ReportDiagnostic(PluginLoadDiagnostic diagnostic)
     {
-        // When source registers items, forward to target and register cleanup on scope
-        source.NavigationItemsChanged += () => { };
+        ArgumentNullException.ThrowIfNull(diagnostic);
+        Report(diagnostic);
     }
 
-    public async ValueTask DisposeAsync()
+    private void Report(PluginLoadDiagnostic diagnostic)
     {
-        if (_isDisposed) return;
-        _isDisposed = true;
+        lock (_diagnostics) _diagnostics.Add(diagnostic);
 
-        foreach (var entry in _plugins.Values.Reverse())
+        var level = diagnostic.Severity switch
         {
-            if (entry.State == PluginLifecycleState.Active)
+            PluginDiagnosticSeverity.Error => LogLevel.Error,
+            PluginDiagnosticSeverity.Warning => LogLevel.Warning,
+            _ => LogLevel.Information
+        };
+        _logger.Log(level, diagnostic.Exception, "{Diagnostic}", diagnostic.ToString());
+        Debug.WriteLine($"[PluginHost] {diagnostic}");
+
+        DiagnosticReported?.Invoke(diagnostic);
+    }
+
+    /// <summary>Unmounts every active plugin, most recently mounted first.</summary>
+    public ValueTask DisposeAsync()
+    {
+        string[] teardownOrder;
+        lock (_lifecycleLock)
+        {
+            if (_isDisposed) return ValueTask.CompletedTask;
+            _isDisposed = true;
+            teardownOrder = _mountOrder.AsEnumerable().Reverse().ToArray();
+            _mountOrder.Clear();
+        }
+
+        foreach (var pluginId in teardownOrder)
+        {
+            if (_plugins.TryGetValue(pluginId, out var entry) && entry.State == PluginLifecycleState.Active)
             {
                 try
                 {
@@ -275,14 +480,17 @@ public sealed class PluginHost : IAsyncDisposable, IDisposable
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"[PluginHost] Error during shutdown of plugin '{entry.Plugin.Id}': {ex.Message}");
+                    Report(new PluginLoadDiagnostic(
+                        PluginLoadStage.Unmount, PluginDiagnosticSeverity.Error,
+                        $"Error during shutdown: {ex.Message}", PluginId: pluginId, Exception: ex));
                 }
             }
         }
 
-        await Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
+    /// <summary>Unmounts every active plugin, most recently mounted first.</summary>
     public void Dispose()
     {
         DisposeAsync().AsTask().GetAwaiter().GetResult();
