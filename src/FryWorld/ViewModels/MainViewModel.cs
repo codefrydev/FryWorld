@@ -71,7 +71,7 @@ public partial class ActiveOverlayViewModel : ViewModelBase
     public double EffectiveHeight => IsMinimized ? 42 : Height;
     public double EffectiveMinHeight => IsMinimized ? 42 : Descriptor.MinHeight;
 
-    public bool HasCustomChrome => Descriptor.HasCustomChrome || Descriptor.Id == "com.fryworld.snake";
+    public bool HasCustomChrome => Descriptor.HasCustomChrome;
     public bool HasStandardChrome => !HasCustomChrome;
 
     public ActiveOverlayViewModel(OverlayDescriptor descriptor, Action<ActiveOverlayViewModel>? onClose = null)
