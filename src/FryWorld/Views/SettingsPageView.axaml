@@ -1,0 +1,330 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:FryWorld.ViewModels"
+             xmlns:theming="using:FryWorld.Sdk.Theming"
+             xmlns:material="using:Material.Icons.Avalonia"
+             x:Class="FryWorld.Views.SettingsPageView"
+             x:DataType="vm:SettingsViewModel">
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="36,28,36,48" Spacing="32" MaxWidth="1100" HorizontalAlignment="Left">
+
+      <!-- ========================================== -->
+      <!-- 1. PAGE HEADER                             -->
+      <!-- ========================================== -->
+      <StackPanel Spacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <Border Width="38" Height="38" CornerRadius="10" Background="{DynamicResource M3PrimaryContainerBrush}">
+            <material:MaterialIcon Kind="CogOutline" Width="22" Height="22" Foreground="{DynamicResource M3PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBlock Text="Settings &amp; Appearance" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock Text="Customize your workspace themes, procedural color harmonies, and inspect runtime diagnostics."
+                   FontSize="13" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" Margin="50,0,0,0" />
+      </StackPanel>
+
+      <!-- ========================================== -->
+      <!-- 2. THEME PRESETS SECTION                   -->
+      <!-- ========================================== -->
+      <Border Background="{DynamicResource M3SurfaceContainerLowBrush}"
+              BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+              BorderThickness="1"
+              CornerRadius="16"
+              Padding="24">
+        <StackPanel Spacing="20">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Grid.Column="0" Spacing="4">
+              <TextBlock Text="Theme Presets" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+              <TextBlock Text="Select a built-in dark or light palette with tuned contrast and perceptual chromaticity."
+                         FontSize="12" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+            </StackPanel>
+
+            <Button Grid.Column="1" Classes="action-btn" Command="{Binding ResetDefaultsCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <material:MaterialIcon Kind="Restart" Width="16" Height="16" Foreground="{DynamicResource M3PrimaryBrush}" />
+                <TextBlock Text="Reset Defaults" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+              </StackPanel>
+            </Button>
+          </Grid>
+
+          <!-- Themes List -->
+          <ItemsControl ItemsSource="{Binding AvailableThemes}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel Orientation="Horizontal" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="theming:ThemeDefinition">
+                <Button Margin="0,0,12,12"
+                        Padding="0"
+                        Width="240"
+                        Background="{DynamicResource M3SurfaceContainerBrush}"
+                        BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        HorizontalContentAlignment="Stretch"
+                        Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).ApplyThemeCommand}"
+                        CommandParameter="{Binding Id}">
+                  <Border Padding="16" CornerRadius="12">
+                    <StackPanel Spacing="10">
+                      <!-- Title & Badge -->
+                      <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource M3OnSurfaceBrush}" TextTrimming="CharacterEllipsis" />
+                        <Border Grid.Column="1"
+                                CornerRadius="8"
+                                Padding="6,2"
+                                Background="{DynamicResource M3PrimaryContainerBrush}">
+                          <TextBlock Text="{Binding IsDark, Converter={x:Static ObjectConverters.IsNotNull}, StringFormat='{}{0}'}"
+                                     FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource M3PrimaryBrush}" />
+                        </Border>
+                      </Grid>
+
+                      <TextBlock Text="{Binding Description}" FontSize="11"
+                                 Foreground="{DynamicResource M3OnSurfaceVariantBrush}"
+                                 TextWrapping="Wrap" MaxLines="2" Height="30" />
+
+                      <!-- Swatch Strip Preview -->
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <Border Width="16" Height="16" CornerRadius="8" Background="{Binding Colors[M3PrimaryBrush], FallbackValue='#38BDF8'}" BorderBrush="#33000000" BorderThickness="1" ToolTip.Tip="Primary Accent" />
+                        <Border Width="16" Height="16" CornerRadius="8" Background="{Binding Colors[M3SecondaryBrush], FallbackValue='#A855F7'}" BorderBrush="#33000000" BorderThickness="1" ToolTip.Tip="Secondary Accent" />
+                        <Border Width="16" Height="16" CornerRadius="8" Background="{Binding Colors[M3SurfaceBrush], FallbackValue='#0D1117'}" BorderBrush="#33FFFFFF" BorderThickness="1" ToolTip.Tip="Surface Base" />
+                        <Border Width="16" Height="16" CornerRadius="8" Background="{Binding Colors[M3SurfaceContainerHighestBrush], FallbackValue='#253046'}" BorderBrush="#33000000" BorderThickness="1" ToolTip.Tip="Container" />
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <!-- ========================================== -->
+      <!-- 3. PROCEDURAL COLOR HARMONY STUDIO         -->
+      <!-- ========================================== -->
+      <Border Background="{DynamicResource M3SurfaceContainerLowBrush}"
+              BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+              BorderThickness="1"
+              CornerRadius="16"
+              Padding="24">
+        <StackPanel Spacing="20">
+          <StackPanel Spacing="4">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <material:MaterialIcon Kind="DiceMultipleOutline" Width="20" Height="20" Foreground="{DynamicResource M3PrimaryBrush}" VerticalAlignment="Center" />
+              <TextBlock Text="Infinite Theme Generator (Color Harmony Studio)" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource M3OnSurfaceBrush}" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock Text="Generate infinite custom palettes using Oklab polar color spaces, CAM16 viewing conditions, and APCA contrast targets."
+                       FontSize="12" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+          </StackPanel>
+
+          <Grid ColumnDefinitions="*,32,*" RowDefinitions="Auto,Auto">
+
+            <!-- Left: Base Hue Wheel Slider -->
+            <StackPanel Grid.Column="0" Grid.Row="0" Spacing="10">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="Base Accent Hue" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <Border Width="18" Height="18" CornerRadius="9" Background="{Binding BaseHueColorHex}" BorderBrush="#33000000" BorderThickness="1" />
+                  <TextBlock Text="{Binding BaseHue, StringFormat='{}{0:0}°'}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource M3PrimaryBrush}" />
+                </StackPanel>
+              </Grid>
+
+              <Slider Minimum="0" Maximum="360" Value="{Binding BaseHue}" TickFrequency="15" IsSnapToTickEnabled="False" />
+              <TextBlock Text="Drag slider to set the starting wheel hue (0° Red, 120° Green, 240° Blue)." FontSize="11" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+            </StackPanel>
+
+            <!-- Right: Harmony Mode Dropdown & Variant -->
+            <StackPanel Grid.Column="2" Grid.Row="0" Spacing="10">
+              <TextBlock Text="Harmony Mathematical Relationship" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+              <ComboBox ItemsSource="{Binding HarmonyModes}"
+                        SelectedItem="{Binding SelectedHarmonyMode}"
+                        HorizontalAlignment="Stretch">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding}" FontSize="12" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+
+              <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,4,0,0">
+                <RadioButton Content="Dark Palette" IsChecked="{Binding IsDark}" GroupName="HarmonyVariant" />
+                <RadioButton Content="Light Palette" IsChecked="{Binding !IsDark}" GroupName="HarmonyVariant" />
+              </StackPanel>
+            </StackPanel>
+
+            <!-- Action Buttons Strip -->
+            <StackPanel Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1" Orientation="Horizontal" Spacing="12" Margin="0,16,0,0">
+              <Button Classes="action-btn" Command="{Binding ApplyCustomHarmonicCommand}" Background="{DynamicResource M3PrimaryBrush}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <material:MaterialIcon Kind="PaletteOutline" Width="18" Height="18" Foreground="{DynamicResource M3OnPrimaryBrush}" />
+                  <TextBlock Text="Apply Custom Harmony" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource M3OnPrimaryBrush}" />
+                </StackPanel>
+              </Button>
+
+              <Button Classes="action-btn" Command="{Binding ApplyRandomHarmonicCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <material:MaterialIcon Kind="DiceMultipleOutline" Width="18" Height="18" Foreground="{DynamicResource M3PrimaryBrush}" />
+                  <TextBlock Text="Roll Random Harmony" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
+
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <!-- ========================================== -->
+      <!-- 4. LIVE PALETTE TOKEN INSPECTOR            -->
+      <!-- ========================================== -->
+      <Border Background="{DynamicResource M3SurfaceContainerLowBrush}"
+              BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+              BorderThickness="1"
+              CornerRadius="16"
+              Padding="24">
+        <StackPanel Spacing="16">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Active Design System Tokens" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+            <TextBlock Text="Real-time hex values currently bound to your active theme layer."
+                       FontSize="12" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+          </StackPanel>
+
+          <WrapPanel Orientation="Horizontal">
+            <!-- Primary -->
+            <Border Width="150" Margin="0,0,12,12" Background="{DynamicResource M3SurfaceContainerBrush}" CornerRadius="10" Padding="12">
+              <StackPanel Spacing="6">
+                <Border Height="32" CornerRadius="6" Background="{Binding PrimaryPreview}" />
+                <TextBlock Text="Primary" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                <TextBlock Text="{Binding PrimaryPreview}" FontSize="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              </StackPanel>
+            </Border>
+
+            <!-- Secondary -->
+            <Border Width="150" Margin="0,0,12,12" Background="{DynamicResource M3SurfaceContainerBrush}" CornerRadius="10" Padding="12">
+              <StackPanel Spacing="6">
+                <Border Height="32" CornerRadius="6" Background="{Binding SecondaryPreview}" />
+                <TextBlock Text="Secondary" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                <TextBlock Text="{Binding SecondaryPreview}" FontSize="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              </StackPanel>
+            </Border>
+
+            <!-- Tertiary -->
+            <Border Width="150" Margin="0,0,12,12" Background="{DynamicResource M3SurfaceContainerBrush}" CornerRadius="10" Padding="12">
+              <StackPanel Spacing="6">
+                <Border Height="32" CornerRadius="6" Background="{Binding TertiaryPreview}" />
+                <TextBlock Text="Tertiary" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                <TextBlock Text="{Binding TertiaryPreview}" FontSize="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              </StackPanel>
+            </Border>
+
+            <!-- Surface Base -->
+            <Border Width="150" Margin="0,0,12,12" Background="{DynamicResource M3SurfaceContainerBrush}" CornerRadius="10" Padding="12">
+              <StackPanel Spacing="6">
+                <Border Height="32" CornerRadius="6" Background="{Binding SurfacePreview}" BorderBrush="#33FFFFFF" BorderThickness="1" />
+                <TextBlock Text="Surface Base" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                <TextBlock Text="{Binding SurfacePreview}" FontSize="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              </StackPanel>
+            </Border>
+
+            <!-- Container Low -->
+            <Border Width="150" Margin="0,0,12,12" Background="{DynamicResource M3SurfaceContainerBrush}" CornerRadius="10" Padding="12">
+              <StackPanel Spacing="6">
+                <Border Height="32" CornerRadius="6" Background="{Binding SurfaceLowPreview}" BorderBrush="#33FFFFFF" BorderThickness="1" />
+                <TextBlock Text="Container Low" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                <TextBlock Text="{Binding SurfaceLowPreview}" FontSize="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              </StackPanel>
+            </Border>
+
+            <!-- Container High -->
+            <Border Width="150" Margin="0,0,12,12" Background="{DynamicResource M3SurfaceContainerBrush}" CornerRadius="10" Padding="12">
+              <StackPanel Spacing="6">
+                <Border Height="32" CornerRadius="6" Background="{Binding SurfaceHighPreview}" BorderBrush="#33FFFFFF" BorderThickness="1" />
+                <TextBlock Text="Container High" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                <TextBlock Text="{Binding SurfaceHighPreview}" FontSize="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              </StackPanel>
+            </Border>
+
+            <!-- Outline -->
+            <Border Width="150" Margin="0,0,12,12" Background="{DynamicResource M3SurfaceContainerBrush}" CornerRadius="10" Padding="12">
+              <StackPanel Spacing="6">
+                <Border Height="32" CornerRadius="6" Background="{Binding OutlinePreview}" />
+                <TextBlock Text="Outline" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                <TextBlock Text="{Binding OutlinePreview}" FontSize="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              </StackPanel>
+            </Border>
+
+            <!-- Success -->
+            <Border Width="150" Margin="0,0,12,12" Background="{DynamicResource M3SurfaceContainerBrush}" CornerRadius="10" Padding="12">
+              <StackPanel Spacing="6">
+                <Border Height="32" CornerRadius="6" Background="{Binding SuccessPreview}" />
+                <TextBlock Text="Success" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                <TextBlock Text="{Binding SuccessPreview}" FontSize="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              </StackPanel>
+            </Border>
+
+            <!-- Warning -->
+            <Border Width="150" Margin="0,0,12,12" Background="{DynamicResource M3SurfaceContainerBrush}" CornerRadius="10" Padding="12">
+              <StackPanel Spacing="6">
+                <Border Height="32" CornerRadius="6" Background="{Binding WarningPreview}" />
+                <TextBlock Text="Warning" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                <TextBlock Text="{Binding WarningPreview}" FontSize="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              </StackPanel>
+            </Border>
+
+            <!-- Error -->
+            <Border Width="150" Margin="0,0,12,12" Background="{DynamicResource M3SurfaceContainerBrush}" CornerRadius="10" Padding="12">
+              <StackPanel Spacing="6">
+                <Border Height="32" CornerRadius="6" Background="{Binding ErrorPreview}" />
+                <TextBlock Text="Error" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                <TextBlock Text="{Binding ErrorPreview}" FontSize="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              </StackPanel>
+            </Border>
+          </WrapPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- ========================================== -->
+      <!-- 5. RUNTIME & SYSTEM DIAGNOSTICS            -->
+      <!-- ========================================== -->
+      <Border Background="{DynamicResource M3SurfaceContainerLowBrush}"
+              BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+              BorderThickness="1"
+              CornerRadius="16"
+              Padding="24">
+        <StackPanel Spacing="16">
+          <TextBlock Text="Host &amp; Microkernel Diagnostics" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+
+          <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto">
+            <StackPanel Grid.Column="0" Spacing="4">
+              <TextBlock Text="Active Plugins" FontSize="11" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              <TextBlock Text="{Binding LoadedPluginCount}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource M3PrimaryBrush}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Spacing="4">
+              <TextBlock Text="Managed Heap Usage" FontSize="11" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              <TextBlock Text="{Binding HeapMemoryText}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource M3PrimaryBrush}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Spacing="4">
+              <TextBlock Text="FryWorld Version" FontSize="11" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+              <TextBlock Text="{Binding HostVersionText}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+            </StackPanel>
+          </Grid>
+
+          <Separator Margin="0,8" />
+
+          <StackPanel Spacing="8">
+            <TextBlock Text="Plugins Directory" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+            <TextBox Text="{Binding PluginsPath}" IsReadOnly="True" FontSize="11" />
+
+            <TextBlock Text="Settings Configuration Path" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" Margin="0,4,0,0" />
+            <TextBox Text="{Binding SettingsPath}" IsReadOnly="True" FontSize="11" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+
+</UserControl>

@@ -2,7 +2,7 @@ param (
     [string]$Version = "1.0.0",
     [string]$PublishDir = "$PSScriptRoot\..\..\publish\win-x64",
     [string]$OutputDir = "$PSScriptRoot\..",
-    [string]$Publisher = "CN=CodeFryDev"
+    [string]$Publisher = "CN=7E83DE15-E15F-41B6-B068-989D9548D0BF"
 )
 
 $ErrorActionPreference = "Stop"
@@ -67,6 +67,12 @@ $manifestContent = $manifestContent -replace '__VERSION__', $cleanVer
 $manifestDest = Join-Path $stageDir "AppxManifest.xml"
 Set-Content -Path $manifestDest -Value $manifestContent -Encoding UTF8
 Write-Host "Generated AppxManifest.xml at $manifestDest"
+
+$storeAssocPath = Join-Path $PSScriptRoot "Package.StoreAssociation.xml"
+if (Test-Path $storeAssocPath) {
+    Copy-Item -Path $storeAssocPath -Destination (Join-Path $stageDir "Package.StoreAssociation.xml") -Force
+    Write-Host "Included Package.StoreAssociation.xml in staging"
+}
 
 # 5. Pack MSIX
 if (-not (Test-Path $OutputDir)) {

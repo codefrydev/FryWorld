@@ -15,6 +15,11 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+
+        if (App.Services?.GetService(typeof(FryWorld.Sdk.Theming.IThemeManager)) is FryWorld.Sdk.Theming.IThemeManager themeManager)
+        {
+            themeManager.TrackResourceRoot(this);
+        }
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -80,6 +85,11 @@ public partial class MainWindow : Window
         }
 
         menu.Items.Add(new NativeMenuItemSeparator());
+        menu.Items.Add(new NativeMenuItem("Settings & Appearance")
+        {
+            Gesture = new KeyGesture(Key.OemComma, KeyModifiers.Meta),
+            Command = _vm.OpenSettingsCommand
+        });
         menu.Items.Add(new NativeMenuItem("Toggle Left Navigation Rail")
         {
             Gesture = new KeyGesture(Key.B, KeyModifiers.Meta),

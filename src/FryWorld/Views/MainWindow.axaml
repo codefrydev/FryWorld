@@ -23,6 +23,12 @@
     <KeyBinding Gesture="Ctrl+2" Command="{Binding OpenPluginsManagerCommand}" />
     <KeyBinding Gesture="Cmd+T" Command="{Binding ToggleThemeCommand}" />
     <KeyBinding Gesture="Ctrl+T" Command="{Binding ToggleThemeCommand}" />
+    <KeyBinding Gesture="Cmd+Shift+T" Command="{Binding ApplyRandomHarmonicCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+T" Command="{Binding ApplyRandomHarmonicCommand}" />
+    <KeyBinding Gesture="Cmd+OemComma" Command="{Binding OpenSettingsCommand}" />
+    <KeyBinding Gesture="Ctrl+OemComma" Command="{Binding OpenSettingsCommand}" />
+    <KeyBinding Gesture="Cmd+J" Command="{Binding ToggleStatusBarCommand}" />
+    <KeyBinding Gesture="Ctrl+J" Command="{Binding ToggleStatusBarCommand}" />
   </Window.KeyBindings>
 
   <!-- macOS / System Native Menu Bar -->
@@ -38,9 +44,26 @@
       </NativeMenuItem>
       <NativeMenuItem Header="Tools">
         <NativeMenu>
+          <NativeMenuItem Header="Settings &amp; Appearance..." Gesture="Cmd+," Command="{Binding OpenSettingsCommand}" />
+          <NativeMenuItemSeparator />
           <NativeMenuItem Header="Command Palette..." Gesture="Cmd+K" Command="{Binding OpenCommandPaletteCommand}" />
           <NativeMenuItemSeparator />
           <NativeMenuItem Header="Toggle Theme" Gesture="Cmd+T" Command="{Binding ToggleThemeCommand}" />
+          <NativeMenuItem Header="🎲 Roll Random Theme (Infinite)" Gesture="Cmd+Shift+T" Command="{Binding ApplyRandomHarmonicCommand}" />
+          <NativeMenuItem Header="Toggle Bottom Status Bar" Gesture="Cmd+J" Command="{Binding ToggleStatusBarCommand}" />
+          <NativeMenuItem Header="Themes">
+            <NativeMenu>
+              <NativeMenuItem Header="Dark+ (Default)" Command="{Binding ApplyThemeCommand}" CommandParameter="dark-plus" />
+              <NativeMenuItem Header="Light+ (Default)" Command="{Binding ApplyThemeCommand}" CommandParameter="light-plus" />
+              <NativeMenuItem Header="Dracula Pro" Command="{Binding ApplyThemeCommand}" CommandParameter="dracula" />
+              <NativeMenuItem Header="Cyberpunk Neon" Command="{Binding ApplyThemeCommand}" CommandParameter="cyberpunk" />
+              <NativeMenuItem Header="Monokai Classic" Command="{Binding ApplyThemeCommand}" CommandParameter="monokai" />
+              <NativeMenuItem Header="One Dark Pro" Command="{Binding ApplyThemeCommand}" CommandParameter="one-dark" />
+              <NativeMenuItem Header="Nord Arctic" Command="{Binding ApplyThemeCommand}" CommandParameter="nord" />
+              <NativeMenuItemSeparator />
+              <NativeMenuItem Header="🎲 Random Color Harmony" Command="{Binding ApplyRandomHarmonicCommand}" />
+            </NativeMenu>
+          </NativeMenuItem>
         </NativeMenu>
       </NativeMenuItem>
     </NativeMenu>
@@ -91,8 +114,33 @@
           </Button>
 
           <!-- Theme Toggle -->
-          <Button Classes="icon-btn" Width="44" Height="44" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="Toggle Light / Dark Theme (⌘T)">
+          <Button Classes="icon-btn" Width="44" Height="44" Command="{Binding ToggleThemeCommand}" ToolTip.Tip="Toggle Theme (⌘T) · Right-click for Presets">
+            <Button.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="Theme Presets" IsEnabled="False" FontWeight="Bold" />
+                <Separator />
+                <MenuItem Header="Dark+ (Default)" Command="{Binding ApplyThemeCommand}" CommandParameter="dark-plus" />
+                <MenuItem Header="Light+ (Default)" Command="{Binding ApplyThemeCommand}" CommandParameter="light-plus" />
+                <MenuItem Header="Dracula Pro" Command="{Binding ApplyThemeCommand}" CommandParameter="dracula" />
+                <MenuItem Header="Cyberpunk Neon" Command="{Binding ApplyThemeCommand}" CommandParameter="cyberpunk" />
+                <MenuItem Header="Monokai Classic" Command="{Binding ApplyThemeCommand}" CommandParameter="monokai" />
+                <MenuItem Header="One Dark Pro" Command="{Binding ApplyThemeCommand}" CommandParameter="one-dark" />
+                <MenuItem Header="Nord Arctic" Command="{Binding ApplyThemeCommand}" CommandParameter="nord" />
+                <Separator />
+                <MenuItem Header="🎲 Random Color Harmony" Command="{Binding ApplyRandomHarmonicCommand}" />
+              </ContextMenu>
+            </Button.ContextMenu>
             <material:MaterialIcon Kind="ThemeLightDark" Width="20" Height="20" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+          </Button>
+
+          <!-- Infinite Theme Generator (Roll Random Theme) -->
+          <Button Classes="icon-btn" Width="44" Height="44" Command="{Binding ApplyRandomHarmonicCommand}" ToolTip.Tip="🎲 Infinite Theme Generator: Roll Random Theme (⌘⇧T / Ctrl+Shift+T)">
+            <material:MaterialIcon Kind="DiceMultipleOutline" Width="20" Height="20" Foreground="{DynamicResource M3PrimaryBrush}" />
+          </Button>
+
+          <!-- Settings Button -->
+          <Button Classes="icon-btn" Width="44" Height="44" Command="{Binding OpenSettingsCommand}" ToolTip.Tip="Settings &amp; Appearance (⌘,)">
+            <material:MaterialIcon Kind="CogOutline" Width="20" Height="20" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
           </Button>
 
           <!-- Collapse Rail Button -->
@@ -121,7 +169,12 @@
           <views:PluginsManagerPageView DataContext="{Binding PluginsManagerVm}" />
         </Panel>
 
-        <!-- C. Dynamic Workspace Studio Plugin View (e.g. C# Studio, Image Editor) -->
+        <!-- C. Settings & Appearance View -->
+        <Panel IsVisible="{Binding IsSettingsActive}">
+          <views:SettingsPageView DataContext="{Binding SettingsVm}" />
+        </Panel>
+
+        <!-- D. Dynamic Workspace Studio Plugin View (e.g. C# Studio, Image Editor) -->
         <ContentControl Content="{Binding CurrentView}"
                         IsVisible="{Binding CurrentView, Converter={x:Static ObjectConverters.IsNotNull}}" />
       </Panel>
@@ -140,6 +193,7 @@
     <!-- ========================================== -->
     <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
             Height="26"
+            IsVisible="{Binding IsStatusBarVisible}"
             Background="{DynamicResource M3SurfaceContainerLowestBrush}"
             BorderBrush="{DynamicResource M3OutlineVariantBrush}"
             BorderThickness="0,1,0,0"

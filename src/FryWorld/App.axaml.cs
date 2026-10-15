@@ -45,13 +45,22 @@ public partial class App : Application
         ConfigureServices(services);
         Services = services.BuildServiceProvider();
 
+        // Initialize Theme persistence
+        var settingsMgr = Services.GetService<ISettingsManager>();
+        if (settingsMgr != null)
+        {
+            Services.GetRequiredService<ThemeService>().SetSettingsManager(settingsMgr);
+        }
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var mainVm = Services.GetRequiredService<MainViewModel>();
-            desktop.MainWindow = new MainWindow
+            var mainWindow = new MainWindow
             {
                 DataContext = mainVm
             };
+            desktop.MainWindow = mainWindow;
+            Services.GetRequiredService<ThemeService>().TrackResourceRoot(mainWindow);
         }
 
         // Plugins load in the background, after the window exists, so it appears immediately.
@@ -63,7 +72,9 @@ public partial class App : Application
     private static void ConfigureServices(IServiceCollection services)
     {
         // Foundation Services
-        services.AddSingleton<IThemeService, ThemeService>();
+        services.AddSingleton<ThemeService>();
+        services.AddSingleton<IThemeService>(sp => sp.GetRequiredService<ThemeService>());
+        services.AddSingleton<FryWorld.Sdk.Theming.IThemeManager>(sp => sp.GetRequiredService<ThemeService>());
         services.AddSingleton<INotificationService, NotificationService>();
         services.AddSingleton<IShellService, ShellService>();
 

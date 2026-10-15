@@ -11,6 +11,7 @@ using FryWorld.Sdk.Hosting;
 using FryWorld.Sdk.Marketplace;
 using FryWorld.Sdk.Plugins;
 using FryWorld.Sdk.Services;
+using FryWorld.Sdk.Theming;
 using FryWorld.Services;
 
 namespace FryWorld.ViewModels;
@@ -128,10 +129,16 @@ public partial class MainViewModel : ViewModelBase
     private bool _isNavRailVisible = true;
 
     [ObservableProperty]
+    private bool _isStatusBarVisible = true;
+
+    [ObservableProperty]
     private bool _isLauncherActive = true;
 
     [ObservableProperty]
     private bool _isPluginsActive;
+
+    [ObservableProperty]
+    private bool _isSettingsActive;
 
     [ObservableProperty]
     private int _loadedPluginCount;
@@ -146,6 +153,7 @@ public partial class MainViewModel : ViewModelBase
 
     public LauncherHomeViewModel LauncherHomeVm { get; }
     public PluginsManagerViewModel PluginsManagerVm { get; }
+    public SettingsViewModel SettingsVm { get; }
     public CommandPaletteViewModel CommandPaletteVm { get; }
 
     public ObservableCollection<NavigationRailItem> NavigationItems { get; } = new();
@@ -164,6 +172,7 @@ public partial class MainViewModel : ViewModelBase
 
         LauncherHomeVm = new LauncherHomeViewModel(_host, _marketplace, NavigateToPlugin);
         PluginsManagerVm = new PluginsManagerViewModel(_host, _marketplace);
+        SettingsVm = new SettingsViewModel((IThemeManager)_themeService, _host);
         CommandPaletteVm = new CommandPaletteViewModel(_host.Context);
         CommandPaletteVm.RequestClose += () => IsCommandPaletteOpen = false;
 
@@ -210,6 +219,17 @@ public partial class MainViewModel : ViewModelBase
 
         _host.Context.RegisterCommand(new CommandPaletteDescriptor
         {
+            Id = "core.toggleStatusBar",
+            Title = "Toggle Bottom Status Bar",
+            Subtitle = "Show or hide the bottom status and diagnostic bar",
+            Category = "View",
+            IconKind = "DockBottom",
+            ShortcutKey = "⌘J",
+            Command = ToggleStatusBarCommand
+        });
+
+        _host.Context.RegisterCommand(new CommandPaletteDescriptor
+        {
             Id = "core.openLauncher",
             Title = "Open Suite Launcher",
             Subtitle = "Switch to FryWorld Launcher Home",
@@ -240,6 +260,44 @@ public partial class MainViewModel : ViewModelBase
             ShortcutKey = "⌘T",
             Command = ToggleThemeCommand
         });
+
+        _host.Context.RegisterCommand(new CommandPaletteDescriptor
+        {
+            Id = "core.openSettings",
+            Title = "Open Settings & Appearance",
+            Subtitle = "Customize theme presets, procedural color harmonies, and diagnostics",
+            Category = "Preferences",
+            IconKind = "CogOutline",
+            ShortcutKey = "⌘,",
+            Command = OpenSettingsCommand
+        });
+
+        if (_themeService is IThemeManager tm)
+        {
+            foreach (var theme in tm.GetAvailableThemes())
+            {
+                var themeId = theme.Id;
+                _host.Context.RegisterCommand(new CommandPaletteDescriptor
+                {
+                    Id = $"core.theme.{themeId}",
+                    Title = $"Theme: {theme.Name}",
+                    Subtitle = theme.Description,
+                    Category = "Themes",
+                    IconKind = "PaletteOutline",
+                    Command = new RelayCommand(() => ApplyTheme(themeId))
+                });
+            }
+
+            _host.Context.RegisterCommand(new CommandPaletteDescriptor
+            {
+                Id = "core.theme.randomHarmonic",
+                Title = "Theme: Random Color Harmony",
+                Subtitle = "Procedurally generate a balanced ergonomic color harmony",
+                Category = "Themes",
+                IconKind = "DiceMultipleOutline",
+                Command = new RelayCommand(() => ApplyRandomHarmonic())
+            });
+        }
     }
 
     private void InitializeNavigation()
@@ -263,6 +321,15 @@ public partial class MainViewModel : ViewModelBase
             IconKind = "ToyBrickOutline"
         };
         NavigationItems.Add(pluginsItem);
+
+        // 3. Built-in Settings & Appearance
+        var settingsItem = new NavigationRailItem
+        {
+            Id = "nav.settings",
+            Title = "Settings & Appearance",
+            IconKind = "CogOutline"
+        };
+        NavigationItems.Add(settingsItem);
 
         SelectedNavItem = homeItem;
     }
@@ -480,9 +547,37 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    public void ApplyTheme(string? themeId)
+    {
+        if (!string.IsNullOrWhiteSpace(themeId) && _themeService is IThemeManager tm)
+        {
+            tm.ApplyTheme(themeId);
+        }
+    }
+
+    [RelayCommand]
+    public void ApplyRandomHarmonic()
+    {
+        if (_themeService is IThemeManager tm)
+        {
+            tm.ApplyRandomHarmonicTheme(_themeService.CurrentTheme == AppTheme.Dark);
+        }
+    }
+
+    public IReadOnlyList<ThemeDefinition> AvailableThemes =>
+        _themeService is IThemeManager tm ? tm.GetAvailableThemes() : Array.Empty<ThemeDefinition>();
+
+    [RelayCommand]
     public void ToggleNavRail()
     {
         IsNavRailVisible = !IsNavRailVisible;
+        IsStatusBarVisible = IsNavRailVisible;
+    }
+
+    [RelayCommand]
+    public void ToggleStatusBar()
+    {
+        IsStatusBarVisible = !IsStatusBarVisible;
     }
 
     [RelayCommand]
@@ -497,6 +592,14 @@ public partial class MainViewModel : ViewModelBase
     {
         var item = NavigationItems.FirstOrDefault(n => n.Id == "nav.plugins") ?? (NavigationItems.Count > 1 ? NavigationItems[1] : null);
         if (item != null) SelectNavigationItem(item);
+    }
+
+    [RelayCommand]
+    public void OpenSettings()
+    {
+        var item = NavigationItems.FirstOrDefault(n => n.Id == "nav.settings") ?? (NavigationItems.Count > 2 ? NavigationItems[2] : null);
+        if (item != null) SelectNavigationItem(item);
+        else IsSettingsActive = true;
     }
 
     public void SelectNavigationItem(NavigationRailItem item)
@@ -515,6 +618,7 @@ public partial class MainViewModel : ViewModelBase
 
         IsLauncherActive = value.Id == "nav.launcher";
         IsPluginsActive = value.Id == "nav.plugins";
+        IsSettingsActive = value.Id == "nav.settings";
 
         if (value.ViewFactory != null)
         {
