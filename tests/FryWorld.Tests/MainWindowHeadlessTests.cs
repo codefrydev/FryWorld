@@ -181,6 +181,73 @@ public class MainWindowHeadlessTests
     }
 
     [Fact]
+    public void NavigateToPlugin_Circuit_LoadsAndDisplaysView()
+    {
+        TestHeadlessSession.Run(() =>
+        {
+            var mainVm = App.Services.GetRequiredService<MainViewModel>();
+            var host = App.Services.GetRequiredService<PluginHost>();
+
+            var startup = App.Services.GetRequiredService<PluginStartup>().Completion;
+            for (int i = 0; i < 400 && !startup.IsCompleted; i++)
+            {
+                TestHeadlessSession.Settle(1);
+            }
+            Assert.True(startup.IsCompleted, "Plugins did not finish loading within the test timeout.");
+
+            var registered = host.GetRegisteredPlugins();
+            Console.WriteLine($"Registered plugins: {string.Join(", ", registered.Select(p => p.Id))}");
+
+            var logs = FryWorld.Sdk.Services.AppLogService.Instance.GetRecentEntries(100);
+            foreach (var log in logs.Where(l => l.Level >= FryWorld.Sdk.Services.AppLogLevel.Warning))
+            {
+                Console.WriteLine($"[LOG {log.Level}] {log.Category}: {log.Message}\nException: {log.Exception}");
+            }
+
+            Console.WriteLine($"CurrentView type: {mainVm.CurrentView?.GetType().FullName}");
+            var window = new MainWindow
+            {
+                DataContext = mainVm,
+                Width = 1280,
+                Height = 820
+            };
+            window.Show();
+            TestHeadlessSession.Settle(10);
+
+            Console.WriteLine($"Before navigate - SelectedNavItem: {mainVm.SelectedNavItem?.Id}, CurrentView: {mainVm.CurrentView?.GetType().FullName}");
+
+            mainVm.NavigateToPlugin("com.fryworld.circuit");
+            TestHeadlessSession.Settle(20);
+
+            Assert.Equal("dyn.com.fryworld.circuit", mainVm.SelectedNavItem?.Id);
+            Assert.NotNull(mainVm.CurrentView);
+            Assert.Equal("FryCircuit.UI.Views.CircuitStudioView", mainVm.CurrentView.GetType().FullName);
+
+            var studioCC = window.FindControl<Avalonia.Controls.ContentControl>("DynamicStudioHost");
+            Assert.NotNull(studioCC);
+            Assert.Same(mainVm.CurrentView, studioCC.Content);
+            Assert.True(studioCC.Bounds.Width > 0, "Studio viewport width must be greater than zero.");
+            Assert.True(studioCC.Bounds.Height > 0, "Studio viewport height must be greater than zero.");
+
+            try
+            {
+                using var frame = TestHeadlessSession.Capture(window);
+                Assert.NotNull(frame);
+                Assert.True(frame.PixelSize.Width > 0);
+                Assert.True(frame.PixelSize.Height > 0);
+            }
+            finally
+            {
+                var launcherItem = mainVm.NavigationItems.First(n => n.Id == "nav.launcher");
+                mainVm.SelectNavigationItem(launcherItem);
+                TestHeadlessSession.Settle(2);
+                window.Close();
+                TestHeadlessSession.Settle(2);
+            }
+        });
+    }
+
+    [Fact]
     public void NavigationRail_ToggleNavRail_TogglesVisibilityAndUpdatesNativeMenu()
     {
         TestHeadlessSession.Run(() =>

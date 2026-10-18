@@ -174,8 +174,9 @@
           <views:SettingsPageView DataContext="{Binding SettingsVm}" />
         </Panel>
 
-        <!-- D. Dynamic Workspace Studio Plugin View (e.g. C# Studio, Image Editor) -->
-        <ContentControl Content="{Binding CurrentView}"
+        <!-- D. Dynamic Workspace Studio Plugin View (e.g. C# Studio, Image Editor, Circuit Studio) -->
+        <ContentControl x:Name="DynamicStudioHost"
+                        Content="{Binding CurrentView}"
                         IsVisible="{Binding CurrentView, Converter={x:Static ObjectConverters.IsNotNull}}" />
       </Panel>
 
