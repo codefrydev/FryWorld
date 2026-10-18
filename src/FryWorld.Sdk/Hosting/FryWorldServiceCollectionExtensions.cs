@@ -52,6 +52,8 @@ public static class FryWorldServiceCollectionExtensions
             return new PluginHost(new FryPluginContext(fallbackServiceProvider: sp), options.Host);
         });
         services.TryAddSingleton<IFryPluginContext>(sp => sp.GetRequiredService<PluginHost>().Context);
+        services.TryAddSingleton<FryWorld.Sdk.Shortcuts.IShortcutRegistry>(sp => sp.GetRequiredService<IFryPluginContext>().Shortcuts);
+        services.TryAddSingleton<FryWorld.Sdk.Shortcuts.IShortcutManager>(sp => sp.GetRequiredService<IFryPluginContext>().GetService<FryWorld.Sdk.Shortcuts.IShortcutManager>());
 
         if (options.SettingsFilePath != null)
         {

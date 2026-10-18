@@ -2,6 +2,18 @@
 
 All notable changes to FryWorld.Sdk. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows [Semantic Versioning](https://semver.org/) under the [compatibility policy](../../docs/sdk/compatibility.md): every 0.x release is additive, so plugins built against 0.0.2 keep compiling and loading.
 
+## [0.3.0] - 2026-10-19
+
+### Added
+
+- **Universal Shortcut & Keybinding Subsystem:** `FryWorld.Sdk.Shortcuts` providing production-grade, extensible, and context-aware keyboard shortcut routing.
+- **Dynamic Shortcut Registry:** `IShortcutRegistry` and `ShortcutRegistry` providing thread-safe, lock-free snapshot cataloging of keyboard bindings with 4-tier precedence (`HostDefault`, `PluginDefault`, `KeymapExtension`, `UserOverride`).
+- **Context-Aware Scoping:** `ShortcutScope` hierarchy (`Global`, `Plugin`, `Overlay`, `Focus`) ensuring scoped hotkeys only fire when their designated workspace or overlay is active.
+- **Focus & Input Shielding:** `ShortcutManager.IsInputShielded` prevents single-letter shortcuts from hijacking text input when keyboard focus is inside editable text presenters (`TextBox`, `AutoCompleteBox`, `TextEditor`, `NumericUpDown`).
+- **Cross-Platform Key Gestures & Chords:** `PlatformKeyGesture` and `KeyStroke` supporting modifier aliases (`"Mod"`, `"CmdOrCtrl"`, `"Cmd"`, `"Ctrl"`, `"Alt"`, `"Shift"`, `"Meta"`), punctuation keys (`","`, `"+"`), and multi-key chord sequences (`"Mod+K, Mod+C"`).
+- **Decoupled Command Handlers:** `IShortcutManager.RegisterCommandHandler` allowing plugins to declare bindings upfront with semantic command IDs and dynamically bind execution delegates at viewmodel runtime with automatic `IDisposable` rollback.
+- **Plugin Context Integration:** `IFryPluginContext.Shortcuts` and `RegisterShortcut(ShortcutBinding)` with automatic scoped unmounting on plugin teardown.
+
 ## [0.2.0] - 2026-10-15
 
 ### Added

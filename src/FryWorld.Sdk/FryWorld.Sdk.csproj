@@ -4,7 +4,7 @@
     <RootNamespace>FryWorld.Sdk</RootNamespace>
     <PackageId Condition="'$(PackageId)' == ''">FryWorld.Sdk</PackageId>
     <Title>FryWorld Plugin &amp; Runtime SDK</Title>
-    <Version Condition="'$(Version)' == ''">0.2.0</Version>
+    <Version Condition="'$(Version)' == ''">0.3.0</Version>
     <!--
       Plugin ABI version. This assembly is the plugin contract: external plugins compile against it
       and do not bundle it (PrivateAssets="all"), so its assembly identity stays fixed at 1.0.0.0.

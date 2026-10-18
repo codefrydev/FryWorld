@@ -12,16 +12,18 @@ namespace FryWorld.ViewModels;
 public partial class CommandPaletteItemViewModel : ViewModelBase
 {
     public CommandPaletteDescriptor Descriptor { get; }
+    private readonly string? _resolvedGesture;
 
     public string Title => Descriptor.Title;
     public string? Subtitle => Descriptor.Subtitle;
     public string? Category => Descriptor.Category ?? "Commands";
     public string? IconKind => Descriptor.IconKind ?? "Flash";
-    public string? ShortcutKey => Descriptor.ShortcutKey;
+    public string? ShortcutKey => _resolvedGesture ?? Descriptor.ShortcutKey;
 
-    public CommandPaletteItemViewModel(CommandPaletteDescriptor descriptor)
+    public CommandPaletteItemViewModel(CommandPaletteDescriptor descriptor, string? resolvedGesture = null)
     {
         Descriptor = descriptor;
+        _resolvedGesture = resolvedGesture;
     }
 }
 
@@ -60,7 +62,8 @@ public partial class CommandPaletteViewModel : ViewModelBase
         FilteredCommands.Clear();
         foreach (var cmd in matches)
         {
-            FilteredCommands.Add(new CommandPaletteItemViewModel(cmd));
+            var resolvedGesture = _context.Shortcuts.ResolveDisplayGesture(cmd.Id);
+            FilteredCommands.Add(new CommandPaletteItemViewModel(cmd, resolvedGesture));
         }
 
         if (FilteredCommands.Count > 0 && SelectedItem == null)

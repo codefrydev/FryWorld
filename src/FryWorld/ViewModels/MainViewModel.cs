@@ -12,6 +12,7 @@ using FryWorld.Sdk.Marketplace;
 using FryWorld.Sdk.Plugins;
 using FryWorld.Sdk.Services;
 using FryWorld.Sdk.Theming;
+using FryWorld.Sdk.Shortcuts;
 using FryWorld.Services;
 
 namespace FryWorld.ViewModels;
@@ -134,6 +135,14 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isLauncherActive = true;
 
+    partial void OnIsLauncherActiveChanged(bool value)
+    {
+        if (value && _host.Context.TryGetService<IShortcutManager>(out var sm))
+        {
+            sm.SetActiveScope(ShortcutScope.Global);
+        }
+    }
+
     [ObservableProperty]
     private bool _isPluginsActive;
 
@@ -206,6 +215,83 @@ public partial class MainViewModel : ViewModelBase
 
     private void RegisterBuiltInCommands()
     {
+        _host.Context.RegisterShortcut(new ShortcutBinding
+        {
+            Id = "core.palette",
+            CommandId = "core.openCommandPalette",
+            Title = "Command Palette",
+            KeyGesture = "Mod+K",
+            Scope = ShortcutScope.Global,
+            Tier = ShortcutTier.HostDefault,
+            Command = OpenCommandPaletteCommand
+        });
+
+        _host.Context.RegisterShortcut(new ShortcutBinding
+        {
+            Id = "core.toggleNavRail",
+            CommandId = "core.toggleNavRail",
+            Title = "Toggle Left Navigation Rail",
+            KeyGesture = "Mod+B",
+            Scope = ShortcutScope.Global,
+            Tier = ShortcutTier.HostDefault,
+            Command = ToggleNavRailCommand
+        });
+
+        _host.Context.RegisterShortcut(new ShortcutBinding
+        {
+            Id = "core.toggleStatusBar",
+            CommandId = "core.toggleStatusBar",
+            Title = "Toggle Bottom Status Bar",
+            KeyGesture = "Mod+J",
+            Scope = ShortcutScope.Global,
+            Tier = ShortcutTier.HostDefault,
+            Command = ToggleStatusBarCommand
+        });
+
+        _host.Context.RegisterShortcut(new ShortcutBinding
+        {
+            Id = "core.openLauncher",
+            CommandId = "core.openLauncher",
+            Title = "Open Suite Launcher",
+            KeyGesture = "Mod+1",
+            Scope = ShortcutScope.Global,
+            Tier = ShortcutTier.HostDefault,
+            Command = OpenLauncherCommand
+        });
+
+        _host.Context.RegisterShortcut(new ShortcutBinding
+        {
+            Id = "core.openPlugins",
+            CommandId = "core.openPlugins",
+            Title = "Open Plugins & Extensions",
+            KeyGesture = "Mod+2",
+            Scope = ShortcutScope.Global,
+            Tier = ShortcutTier.HostDefault,
+            Command = OpenPluginsManagerCommand
+        });
+
+        _host.Context.RegisterShortcut(new ShortcutBinding
+        {
+            Id = "core.toggleTheme",
+            CommandId = "core.toggleTheme",
+            Title = "Toggle Theme",
+            KeyGesture = "Mod+T",
+            Scope = ShortcutScope.Global,
+            Tier = ShortcutTier.HostDefault,
+            Command = ToggleThemeCommand
+        });
+
+        _host.Context.RegisterShortcut(new ShortcutBinding
+        {
+            Id = "core.openSettings",
+            CommandId = "core.openSettings",
+            Title = "Open Settings & Appearance",
+            KeyGesture = "Mod+,",
+            Scope = ShortcutScope.Global,
+            Tier = ShortcutTier.HostDefault,
+            Command = OpenSettingsCommand
+        });
+
         _host.Context.RegisterCommand(new CommandPaletteDescriptor
         {
             Id = "core.toggleNavRail",
@@ -612,6 +698,11 @@ public partial class MainViewModel : ViewModelBase
         foreach (var item in NavigationItems)
         {
             item.IsSelected = item == value;
+        }
+
+        if (_host.Context.TryGetService<IShortcutManager>(out var sm))
+        {
+            sm.SetActiveScope(value != null && !value.Id.StartsWith("nav.") ? ShortcutScope.Plugin(value.Id) : ShortcutScope.Global);
         }
 
         if (value == null) return;

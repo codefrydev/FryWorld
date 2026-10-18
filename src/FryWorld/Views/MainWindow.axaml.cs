@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using CommunityToolkit.Mvvm.Input;
 using FryWorld.ViewModels;
 
@@ -10,16 +11,25 @@ namespace FryWorld.Views;
 public partial class MainWindow : Window
 {
     private MainViewModel? _vm;
+    private readonly FryWorld.Sdk.Shortcuts.IShortcutManager? _shortcutManager;
 
     public MainWindow()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
 
+        _shortcutManager = App.Services?.GetService(typeof(FryWorld.Sdk.Shortcuts.IShortcutManager)) as FryWorld.Sdk.Shortcuts.IShortcutManager;
+        AddHandler(InputElement.KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel);
+
         if (App.Services?.GetService(typeof(FryWorld.Sdk.Theming.IThemeManager)) is FryWorld.Sdk.Theming.IThemeManager themeManager)
         {
             themeManager.TrackResourceRoot(this);
         }
+    }
+
+    private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
+    {
+        _shortcutManager?.ProcessKeyDown(e);
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)

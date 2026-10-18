@@ -59,6 +59,7 @@ public sealed class ThemeService : IThemeManager
         // Register default domain token contributors
         _contributors["csharpstudio"] = new FryWorld.Sdk.Theming.Contributors.DeveloperStudioTokenContributor();
         _contributors["imageeditor"] = new FryWorld.Sdk.Theming.Contributors.PhotoStudioTokenContributor();
+        _contributors["circuitstudio"] = new FryWorld.Sdk.Theming.Contributors.CircuitStudioTokenContributor();
 
         foreach (var theme in BuiltInThemes.All)
         {

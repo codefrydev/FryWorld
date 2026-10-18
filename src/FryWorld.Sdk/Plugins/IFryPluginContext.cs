@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using FryWorld.Sdk.Descriptors;
 using FryWorld.Sdk.Pipelines;
+using FryWorld.Sdk.Shortcuts;
 
 namespace FryWorld.Sdk.Plugins;
 
@@ -176,11 +177,17 @@ public interface IFryPluginContext : IServiceProvider
 
     // --- 11. Shortcuts & Dialogs ---
 
+    /// <summary>The centralized shortcut and keybinding registry.</summary>
+    IShortcutRegistry Shortcuts => GetService<IShortcutRegistry>();
+
     /// <summary>Raised when a keyboard shortcut is registered or removed.</summary>
     event Action? ShortcutsChanged;
 
     /// <summary>Adds a keyboard shortcut.</summary>
     IDisposable RegisterShortcut(ShortcutDescriptor descriptor);
+
+    /// <summary>Adds a customizable keyboard shortcut binding.</summary>
+    IDisposable RegisterShortcut(ShortcutBinding binding) => Shortcuts.Register(binding);
 
     /// <summary>All registered keyboard shortcuts, in registration order.</summary>
     IReadOnlyList<ShortcutDescriptor> GetRegisteredShortcuts();

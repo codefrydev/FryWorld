@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FryWorld.Sdk.Descriptors;
 using FryWorld.Sdk.Pipelines;
+using FryWorld.Sdk.Shortcuts;
 
 namespace FryWorld.Sdk.Plugins;
 
@@ -43,6 +44,7 @@ public class FryPluginContext : IFryPluginContext
     private readonly Registry<InspectorSectionDescriptor> _inspectors = new(RegistryKind.Inspectors, static i => i.Order);
     private readonly Registry<ShortcutDescriptor> _shortcuts = new(RegistryKind.Shortcuts);
     private readonly Registry<DialogDescriptor> _dialogs = new(RegistryKind.Dialogs);
+    private readonly IShortcutRegistry _shortcutRegistry;
 
     // Change notification batching: while _deferDepth > 0, changed registries are recorded as bits in
     // _pendingChanges and each fires once when the last deferral ends.
@@ -80,6 +82,9 @@ public class FryPluginContext : IFryPluginContext
     /// <inheritdoc />
     public event Action? DialogsChanged;
 
+    /// <inheritdoc />
+    public virtual IShortcutRegistry Shortcuts => _shortcutRegistry;
+
     /// <summary>
     /// Creates a context. Registrations made directly on it are bound to <paramref name="scope"/> when one is given.
     /// </summary>
@@ -87,10 +92,26 @@ public class FryPluginContext : IFryPluginContext
         PluginScope? scope = null,
         IPipelineManager? pipelines = null,
         IServiceProvider? fallbackServiceProvider = null)
+        : this(scope, pipelines, fallbackServiceProvider, null)
+    {
+    }
+
+    /// <summary>
+    /// Creates a context with a custom shortcut registry.
+    /// </summary>
+    public FryPluginContext(
+        PluginScope? scope,
+        IPipelineManager? pipelines,
+        IServiceProvider? fallbackServiceProvider,
+        IShortcutRegistry? shortcutRegistry)
     {
         _scope = scope;
         _pipelines = pipelines ?? new PipelineManager();
         _fallbackServiceProvider = fallbackServiceProvider;
+        _shortcutRegistry = shortcutRegistry ?? new ShortcutRegistry();
+        _shortcutRegistry.Changed += () => NotifyChanged(RegistryKind.Shortcuts);
+        RegisterService<IShortcutRegistry>(_shortcutRegistry);
+        RegisterService<IShortcutManager>(new ShortcutManager(_shortcutRegistry));
     }
 
     /// <summary>
@@ -399,7 +420,43 @@ public class FryPluginContext : IFryPluginContext
     public virtual IReadOnlyList<InspectorSectionDescriptor> GetRegisteredInspectorSections() => _inspectors.Snapshot;
 
     /// <inheritdoc />
-    public virtual IDisposable RegisterShortcut(ShortcutDescriptor descriptor) => Register(_shortcuts, descriptor);
+    public virtual IDisposable RegisterShortcut(ShortcutDescriptor descriptor)
+    {
+        var legacyHandle = Register(_shortcuts, descriptor);
+        var registryHandle = _shortcutRegistry.Register(descriptor);
+        return new DisposableAction(() =>
+        {
+            registryHandle.Dispose();
+            legacyHandle.Dispose();
+        });
+    }
+
+    /// <inheritdoc />
+    public virtual IDisposable RegisterShortcut(ShortcutBinding binding)
+    {
+        var registryHandle = _shortcutRegistry.Register(binding);
+        var desc = new ShortcutDescriptor
+        {
+            Id = binding.Id,
+            Description = binding.Description ?? binding.Title ?? binding.Id,
+            KeyGesture = binding.KeyGesture,
+            Command = binding.Command,
+            Scope = binding.Scope,
+            When = binding.When,
+            WhenPredicate = binding.WhenPredicate,
+            Priority = binding.Priority,
+            Category = binding.Category,
+            Title = binding.Title,
+            AsyncAction = binding.AsyncAction != null ? () => binding.AsyncAction(new ShortcutExecutionContext(new ShortcutContext())) : null,
+            IsEnabled = binding.IsEnabled
+        };
+        var legacyHandle = Register(_shortcuts, desc);
+        return new DisposableAction(() =>
+        {
+            registryHandle.Dispose();
+            legacyHandle.Dispose();
+        });
+    }
 
     /// <inheritdoc />
     public virtual IReadOnlyList<ShortcutDescriptor> GetRegisteredShortcuts() => _shortcuts.Snapshot;
@@ -592,8 +649,13 @@ public class FryPluginContext : IFryPluginContext
 
         public IReadOnlyList<InspectorSectionDescriptor> GetRegisteredInspectorSections() => _parent.GetRegisteredInspectorSections();
 
+        public IShortcutRegistry Shortcuts => _parent.Shortcuts;
+
         public IDisposable RegisterShortcut(ShortcutDescriptor descriptor) =>
             _scope.RegisterDisposable(_parent.RegisterShortcut(descriptor));
+
+        public IDisposable RegisterShortcut(ShortcutBinding binding) =>
+            _scope.RegisterDisposable(_parent.RegisterShortcut(binding));
 
         public IReadOnlyList<ShortcutDescriptor> GetRegisteredShortcuts() => _parent.GetRegisteredShortcuts();
 
