@@ -1,10 +1,12 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using FryWorld.Sdk.Descriptors;
 using FryWorld.Sdk.Hosting;
+using FryWorld.Sdk.Marketplace;
 using FryWorld.Sdk.Plugins;
 using FryWorld.Tests.TestSupport;
 using FryWorld.Services;
@@ -245,6 +247,25 @@ public class MainWindowHeadlessTests
                 TestHeadlessSession.Settle(2);
             }
         });
+    }
+
+    [Fact]
+    public async Task Marketplace_InstallCircuitPlugin_DownloadsVerifiesAndMounts()
+    {
+        var marketplace = App.Services.GetRequiredService<IPluginMarketplaceService>();
+        var host = App.Services.GetRequiredService<PluginHost>();
+
+        var catalog = await marketplace.FetchCatalogAsync(forceRefresh: true);
+        var circuitItem = catalog.FirstOrDefault(c => c.Id == "com.fryworld.circuit");
+        Assert.NotNull(circuitItem);
+        Assert.Equal("1.0.0", circuitItem.Version);
+        Assert.Contains("FryStore", circuitItem.DownloadUrl);
+
+        var downloadedPath = await marketplace.DownloadPackageAsync(circuitItem);
+        Assert.True(File.Exists(downloadedPath));
+
+        await marketplace.InstallPackageAsync(downloadedPath);
+        Assert.Contains(host.GetRegisteredPlugins(), p => p.Id == "com.fryworld.circuit");
     }
 
     [Fact]

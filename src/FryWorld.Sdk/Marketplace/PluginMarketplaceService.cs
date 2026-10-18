@@ -44,7 +44,7 @@ public sealed class PluginMarketplaceOptions
 /// </summary>
 public sealed class PluginMarketplaceService : IPluginMarketplaceService, IDisposable
 {
-    private const string DefaultCatalogUrl = "https://raw.githubusercontent.com/codefrydev/PDFCreator-resources/refs/heads/main/plugins/catalog.json";
+    private const string DefaultCatalogUrl = "https://raw.githubusercontent.com/codefrydev/FryStore/refs/heads/main/plugins/catalog.json";
     private static readonly HttpClient SharedHttpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
 
     private readonly string _catalogUrl;

@@ -381,7 +381,8 @@ public partial class LauncherHomeViewModel : ViewModelBase
                     Name = card.Title,
                     Version = card.SelectedVersion.Version,
                     DownloadUrl = card.SelectedVersion.DownloadUrl,
-                    FormattedSize = card.SelectedVersion.FormattedSize
+                    FormattedSize = card.SelectedVersion.FormattedSize,
+                    Versions = new() { card.SelectedVersion }
                 };
             }
 
