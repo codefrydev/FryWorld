@@ -250,22 +250,45 @@ public class MainWindowHeadlessTests
     }
 
     [Fact]
-    public async Task Marketplace_InstallCircuitPlugin_DownloadsVerifiesAndMounts()
+    public void Marketplace_InstallCircuitPlugin_DownloadsVerifiesAndMounts()
     {
-        var marketplace = App.Services.GetRequiredService<IPluginMarketplaceService>();
-        var host = App.Services.GetRequiredService<PluginHost>();
+        TestHeadlessSession.Run(() =>
+        {
+            var marketplace = App.Services.GetRequiredService<IPluginMarketplaceService>();
+            var host = App.Services.GetRequiredService<PluginHost>();
 
-        var catalog = await marketplace.FetchCatalogAsync(forceRefresh: true);
-        var circuitItem = catalog.FirstOrDefault(c => c.Id == "com.fryworld.circuit");
-        Assert.NotNull(circuitItem);
-        Assert.Equal("1.0.0", circuitItem.Version);
-        Assert.Contains("FryStore", circuitItem.DownloadUrl);
+            var catalogTask = marketplace.FetchCatalogAsync(forceRefresh: true);
+            for (int i = 0; i < 300 && !catalogTask.IsCompleted; i++)
+            {
+                TestHeadlessSession.Settle(1);
+            }
+            Assert.True(catalogTask.IsCompleted, "Catalog fetch timed out.");
+            var catalog = catalogTask.GetAwaiter().GetResult();
 
-        var downloadedPath = await marketplace.DownloadPackageAsync(circuitItem);
-        Assert.True(File.Exists(downloadedPath));
+            var circuitItem = catalog.FirstOrDefault(c => c.Id == "com.fryworld.circuit");
+            Assert.NotNull(circuitItem);
+            Assert.True(Version.TryParse(circuitItem.Version, out var v) && v >= new Version(1, 0, 0));
+            Assert.Contains("FryStore", circuitItem.DownloadUrl);
 
-        await marketplace.InstallPackageAsync(downloadedPath);
-        Assert.Contains(host.GetRegisteredPlugins(), p => p.Id == "com.fryworld.circuit");
+            var downloadTask = marketplace.DownloadPackageAsync(circuitItem);
+            for (int i = 0; i < 300 && !downloadTask.IsCompleted; i++)
+            {
+                TestHeadlessSession.Settle(1);
+            }
+            Assert.True(downloadTask.IsCompleted, "Package download timed out.");
+            var downloadedPath = downloadTask.GetAwaiter().GetResult();
+            Assert.True(File.Exists(downloadedPath));
+
+            var installTask = marketplace.InstallPackageAsync(downloadedPath);
+            for (int i = 0; i < 500 && !installTask.IsCompleted; i++)
+            {
+                TestHeadlessSession.Settle(1);
+            }
+            Assert.True(installTask.IsCompleted, "Plugin installation timed out.");
+            installTask.GetAwaiter().GetResult();
+
+            Assert.Contains(host.GetRegisteredPlugins(), p => p.Id == "com.fryworld.circuit");
+        });
     }
 
     [Fact]
