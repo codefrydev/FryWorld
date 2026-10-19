@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
+using FryWorld.Sdk.AI;
 using FryWorld.Sdk.Descriptors;
 using FryWorld.Sdk.Pipelines;
 using FryWorld.Sdk.Shortcuts;
+using Microsoft.Extensions.AI;
 
 namespace FryWorld.Sdk.Plugins;
 
@@ -200,4 +202,40 @@ public interface IFryPluginContext : IServiceProvider
 
     /// <summary>All registered dialogs, in registration order.</summary>
     IReadOnlyList<DialogDescriptor> GetRegisteredDialogs();
+
+    // --- 12. Dynamic AI & Agent Capability Registry ---
+
+    /// <summary>The centralized AI service.</summary>
+    IAiService Ai => GetService<IAiService>();
+
+    /// <summary>Raised when an AI context provider is registered or removed.</summary>
+    event Action? AiContextProvidersChanged;
+
+    /// <summary>Registers an active context provider for this plugin.</summary>
+    IDisposable RegisterAiContextProvider(IAiContextProvider provider);
+
+    /// <summary>All registered AI context providers.</summary>
+    IReadOnlyList<IAiContextProvider> GetRegisteredAiContextProviders();
+
+    /// <summary>Raised when an AI tool is registered or removed.</summary>
+    event Action? AiToolsChanged;
+
+    /// <summary>Registers an AI tool function callable by LLMs and MCP clients.</summary>
+    IDisposable RegisterAiTool(AiToolDescriptor descriptor);
+
+    /// <summary>Convenience overload to register an AIFunction.</summary>
+    IDisposable RegisterAiTool(AIFunction function, bool requiresConfirmation = false, string? category = null);
+
+    /// <summary>All registered AI tools.</summary>
+    IReadOnlyList<AiToolDescriptor> GetRegisteredAiTools();
+
+    /// <summary>Raised when an AI prompt template is registered or removed.</summary>
+    event Action? AiPromptsChanged;
+
+    /// <summary>Registers a prompt template.</summary>
+    IDisposable RegisterAiPrompt(AiPromptDescriptor descriptor);
+
+    /// <summary>All registered AI prompt templates.</summary>
+    IReadOnlyList<AiPromptDescriptor> GetRegisteredAiPrompts();
 }
+

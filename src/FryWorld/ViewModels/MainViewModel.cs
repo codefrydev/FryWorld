@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using FryWorld.Sdk.AI;
 using FryWorld.Sdk.Descriptors;
 using FryWorld.Sdk.Hosting;
 using FryWorld.Sdk.Marketplace;
@@ -14,6 +15,7 @@ using FryWorld.Sdk.Services;
 using FryWorld.Sdk.Theming;
 using FryWorld.Sdk.Shortcuts;
 using FryWorld.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FryWorld.ViewModels;
 
@@ -250,6 +252,17 @@ public partial class MainViewModel : ViewModelBase
 
         _host.Context.RegisterShortcut(new ShortcutBinding
         {
+            Id = "core.toggleAiAssistant",
+            CommandId = "core.ai.assistant",
+            Title = "Toggle AI Copilot",
+            KeyGesture = "Mod+I",
+            Scope = ShortcutScope.Global,
+            Tier = ShortcutTier.HostDefault,
+            Command = ToggleAiAssistantCommand
+        });
+
+        _host.Context.RegisterShortcut(new ShortcutBinding
+        {
             Id = "core.openLauncher",
             CommandId = "core.openLauncher",
             Title = "Open Suite Launcher",
@@ -384,6 +397,45 @@ public partial class MainViewModel : ViewModelBase
                 Command = new RelayCommand(() => ApplyRandomHarmonic())
             });
         }
+
+        _host.Context.RegisterCommand(new CommandPaletteDescriptor
+        {
+            Id = "core.ai.assistant",
+            Title = "Open AI Copilot",
+            Subtitle = "Interactive AI assistant grounded in the active workspace",
+            Category = "AI & Automation",
+            IconKind = "AutoFixHigh",
+            ShortcutKey = "⌘I",
+            Command = ToggleAiAssistantCommand
+        });
+
+        _host.Context.RegisterStatusBarWidget(new StatusBarWidgetDescriptor
+        {
+            Id = "fryworld.status.ai",
+            Label = "✨ Copilot",
+            Tooltip = "Open AI Copilot (⌘I)",
+            AlignRight = true,
+            Order = 10,
+            ClickCommand = ToggleAiAssistantCommand
+        });
+
+        _host.Context.RegisterOverlay(new OverlayDescriptor
+        {
+            Id = "core.ai.assistant",
+            Title = "✨ Fry AI Copilot",
+            IconKind = "AutoFixHigh",
+            DefaultWidth = 420,
+            DefaultHeight = 650,
+            MinWidth = 360,
+            MinHeight = 450,
+            IsResizable = true,
+            AutoOpenOnMount = false,
+            ViewFactory = () =>
+            {
+                var vm = App.Services.GetRequiredService<AiAssistantViewModel>();
+                return new Views.AiAssistantView { DataContext = vm };
+            }
+        });
     }
 
     private void InitializeNavigation()
@@ -661,6 +713,32 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    public void ToggleAiAssistant()
+    {
+        var existing = ActiveOverlays.FirstOrDefault(o => o.Descriptor.Id == "core.ai.assistant");
+        if (existing != null)
+        {
+            if (existing.IsVisible)
+            {
+                existing.IsVisible = false;
+            }
+            else
+            {
+                existing.IsVisible = true;
+                existing.IsMinimized = false;
+                existing.BringToFront(ActiveOverlays);
+            }
+            return;
+        }
+
+        var overlay = _host.Context.GetRegisteredOverlays().FirstOrDefault(o => o.Id == "core.ai.assistant");
+        if (overlay != null)
+        {
+            OpenOverlay(overlay);
+        }
+    }
+
+    [RelayCommand]
     public void ToggleStatusBar()
     {
         IsStatusBarVisible = !IsStatusBarVisible;
@@ -703,6 +781,11 @@ public partial class MainViewModel : ViewModelBase
         if (_host.Context.TryGetService<IShortcutManager>(out var sm))
         {
             sm.SetActiveScope(value != null && !value.Id.StartsWith("nav.") ? ShortcutScope.Plugin(value.Id) : ShortcutScope.Global);
+        }
+
+        if (_host.Context.TryGetService<IAiService>(out var ai) && ai.ContextManager is FryWorld.Services.AI.AiContextManager acm)
+        {
+            acm.NotifyActiveWorkspaceChanged();
         }
 
         if (value == null) return;

@@ -2,6 +2,17 @@
 
 All notable changes to FryWorld.Sdk. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows [Semantic Versioning](https://semver.org/) under the [compatibility policy](../../docs/sdk/compatibility.md): every 0.x release is additive, so plugins built against 0.0.2 keep compiling and loading.
 
+## [0.4.0] - 2026-10-19
+
+### Added
+
+- **Universal AI Subsystem & MCP Protocol Integration:** `FryWorld.Sdk.AI` bringing first-class agentic AI tool capabilities, turnkey engineering prompts, and context providers directly into the plugin microkernel.
+- **Dynamic AI Tool Registry:** `IAiToolRegistry` and `AiToolRegistry` for registering semantic tools with `Microsoft.Extensions.AI.AIFunction` descriptors, argument schemas, categories, and permission checks.
+- **Context-Aware AI Providers:** `IAiContextProvider` allowing active workspaces and plugins to stream structured runtime diagnostics, active documents, circuit schematics, or simulation states into LLM context windows.
+- **Turnkey Engineering Prompts:** `AiPromptDescriptor` cataloging prompt templates with user parameterization for specialized domain tasks.
+- **Plugin Context Integration:** `IFryPluginContext.RegisterAiTool`, `RegisterAiPrompt`, `RegisterAiContextProvider`, and corresponding query APIs with automatic unmounting and disposal on plugin teardown.
+- **Host Assembly Provisioning:** Added `Microsoft.Extensions.AI` to `FryWorld.Sdk.HostAssemblies.txt` so plugins can author AI tools without duplicating AI abstraction binaries.
+
 ## [0.3.0] - 2026-10-19
 
 ### Added

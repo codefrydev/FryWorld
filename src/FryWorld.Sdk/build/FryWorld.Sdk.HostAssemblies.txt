@@ -52,3 +52,4 @@ Material.Icons.Avalonia
 Microsoft.Extensions.DependencyInjection
 Microsoft.Extensions.DependencyInjection.Abstractions
 Microsoft.Extensions.Logging.Abstractions
+Microsoft.Extensions.AI*

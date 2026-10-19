@@ -39,8 +39,12 @@ public sealed class ShellService : IShellService
 
     public bool NavigateTo(string navigationItemId)
     {
-        var page = _host.Context.GetRegisteredNavigationItems()
-            .FirstOrDefault(n => string.Equals(n.Id, navigationItemId, StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(navigationItemId)) return false;
+
+        var items = _host.Context.GetRegisteredNavigationItems();
+        var page = items.FirstOrDefault(n => string.Equals(n.Id, navigationItemId, StringComparison.OrdinalIgnoreCase))
+            ?? items.FirstOrDefault(n => n.Id.EndsWith($".{navigationItemId}", StringComparison.OrdinalIgnoreCase) || n.Id.EndsWith(navigationItemId, StringComparison.OrdinalIgnoreCase))
+            ?? items.FirstOrDefault(n => string.Equals(n.Title, navigationItemId, StringComparison.OrdinalIgnoreCase));
         if (page == null) return false;
 
         OnUiThread(() => Shell.NavigateToPlugin(page.Id));
@@ -49,8 +53,12 @@ public sealed class ShellService : IShellService
 
     public bool ShowOverlay(string overlayId)
     {
-        var overlay = _host.Context.GetRegisteredOverlays()
-            .FirstOrDefault(o => string.Equals(o.Id, overlayId, StringComparison.OrdinalIgnoreCase));
+        if (string.IsNullOrWhiteSpace(overlayId)) return false;
+
+        var overlays = _host.Context.GetRegisteredOverlays();
+        var overlay = overlays.FirstOrDefault(o => string.Equals(o.Id, overlayId, StringComparison.OrdinalIgnoreCase))
+            ?? overlays.FirstOrDefault(o => o.Id.EndsWith($".{overlayId}", StringComparison.OrdinalIgnoreCase) || o.Id.EndsWith(overlayId, StringComparison.OrdinalIgnoreCase))
+            ?? overlays.FirstOrDefault(o => string.Equals(o.Title, overlayId, StringComparison.OrdinalIgnoreCase));
         if (overlay == null) return false;
 
         OnUiThread(() => Shell.OpenOverlay(overlay));
@@ -59,14 +67,17 @@ public sealed class ShellService : IShellService
 
     public bool HideOverlay(string overlayId)
     {
-        if (!_host.Context.GetRegisteredOverlays().Any(o => string.Equals(o.Id, overlayId, StringComparison.OrdinalIgnoreCase)))
-        {
-            return false;
-        }
+        if (string.IsNullOrWhiteSpace(overlayId)) return false;
+
+        var overlays = _host.Context.GetRegisteredOverlays();
+        var overlay = overlays.FirstOrDefault(o => string.Equals(o.Id, overlayId, StringComparison.OrdinalIgnoreCase))
+            ?? overlays.FirstOrDefault(o => o.Id.EndsWith($".{overlayId}", StringComparison.OrdinalIgnoreCase) || o.Id.EndsWith(overlayId, StringComparison.OrdinalIgnoreCase))
+            ?? overlays.FirstOrDefault(o => string.Equals(o.Title, overlayId, StringComparison.OrdinalIgnoreCase));
+        if (overlay == null) return false;
 
         OnUiThread(() =>
         {
-            var open = Shell.ActiveOverlays.FirstOrDefault(o => string.Equals(o.Descriptor.Id, overlayId, StringComparison.OrdinalIgnoreCase));
+            var open = Shell.ActiveOverlays.FirstOrDefault(o => string.Equals(o.Descriptor.Id, overlay.Id, StringComparison.OrdinalIgnoreCase));
             if (open != null) Shell.CloseOverlay(open);
         });
         return true;

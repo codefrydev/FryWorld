@@ -3,10 +3,13 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using FryWorld.Hosting.Mcp;
+using FryWorld.Sdk.AI;
 using FryWorld.Sdk.Hosting;
 using FryWorld.Sdk.Plugins;
 using FryWorld.Sdk.Services;
 using FryWorld.Services;
+using FryWorld.Services.AI;
 using FryWorld.ViewModels;
 using FryWorld.Views;
 
@@ -52,6 +55,19 @@ public partial class App : Application
             Services.GetRequiredService<ThemeService>().SetSettingsManager(settingsMgr);
         }
 
+        // Register host-provided AI service to plugin context
+        var host = Services.GetRequiredService<PluginHost>();
+        var aiService = Services.GetRequiredService<IAiService>();
+        host.Context.RegisterService<IAiService>(aiService);
+
+        // Start MCP server (HTTP/SSE)
+        var aiSettings = Services.GetRequiredService<AiSettings>();
+        if (aiSettings.McpEnabled)
+        {
+            var mcpTransport = Services.GetRequiredService<McpHttpSseTransport>();
+            mcpTransport.Start(aiSettings.McpPort);
+        }
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var mainVm = Services.GetRequiredService<MainViewModel>();
@@ -61,6 +77,11 @@ public partial class App : Application
             };
             desktop.MainWindow = mainWindow;
             Services.GetRequiredService<ThemeService>().TrackResourceRoot(mainWindow);
+
+            desktop.Exit += (s, e) =>
+            {
+                Services.GetService<McpHttpSseTransport>()?.Dispose();
+            };
         }
 
         // Plugins load in the background, after the window exists, so it appears immediately.
@@ -78,6 +99,39 @@ public partial class App : Application
         services.AddSingleton<INotificationService, NotificationService>();
         services.AddSingleton<IShellService, ShellService>();
 
+        // AI & MCP Subsystems
+        services.AddSingleton<AiSettings>();
+        services.AddSingleton<AiContextManager>(sp =>
+        {
+            var host = sp.GetRequiredService<PluginHost>();
+            return new AiContextManager(host.Context, () =>
+            {
+                var mainVm = sp.GetService<MainViewModel>();
+                return mainVm?.SelectedNavItem?.Id;
+            });
+        });
+        services.AddSingleton<IAiContextManager>(sp => sp.GetRequiredService<AiContextManager>());
+        services.AddSingleton<AiToolRegistry>(sp =>
+        {
+            var host = sp.GetRequiredService<PluginHost>();
+            return new AiToolRegistry(host.Context, () =>
+            {
+                var mainVm = sp.GetService<MainViewModel>();
+                return mainVm?.SelectedNavItem?.Id;
+            });
+        });
+        services.AddSingleton<IAiToolRegistry>(sp => sp.GetRequiredService<AiToolRegistry>());
+        services.AddSingleton<AiPromptRegistry>(sp =>
+        {
+            var host = sp.GetRequiredService<PluginHost>();
+            return new AiPromptRegistry(host.Context);
+        });
+        services.AddSingleton<IAiPromptRegistry>(sp => sp.GetRequiredService<AiPromptRegistry>());
+        services.AddSingleton<AiService>();
+        services.AddSingleton<IAiService>(sp => sp.GetRequiredService<AiService>());
+        services.AddSingleton<McpServer>();
+        services.AddSingleton<McpHttpSseTransport>();
+
         // Plugin runtime: host, marketplace, settings (same settings.json as before) and background startup
         services.AddFryWorldPluginHost(o =>
         {
@@ -90,5 +144,7 @@ public partial class App : Application
 
         // Master ViewModels
         services.AddSingleton<MainViewModel>();
+        services.AddSingleton<AiAssistantViewModel>();
     }
 }
+

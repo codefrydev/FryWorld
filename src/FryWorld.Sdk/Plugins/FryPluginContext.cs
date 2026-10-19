@@ -6,9 +6,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using FryWorld.Sdk.AI;
 using FryWorld.Sdk.Descriptors;
 using FryWorld.Sdk.Pipelines;
 using FryWorld.Sdk.Shortcuts;
+using Microsoft.Extensions.AI;
 
 namespace FryWorld.Sdk.Plugins;
 
@@ -44,6 +46,9 @@ public class FryPluginContext : IFryPluginContext
     private readonly Registry<InspectorSectionDescriptor> _inspectors = new(RegistryKind.Inspectors, static i => i.Order);
     private readonly Registry<ShortcutDescriptor> _shortcuts = new(RegistryKind.Shortcuts);
     private readonly Registry<DialogDescriptor> _dialogs = new(RegistryKind.Dialogs);
+    private readonly Registry<IAiContextProvider> _aiContextProviders = new(RegistryKind.AiContextProviders);
+    private readonly Registry<AiToolDescriptor> _aiTools = new(RegistryKind.AiTools);
+    private readonly Registry<AiPromptDescriptor> _aiPrompts = new(RegistryKind.AiPrompts);
     private readonly IShortcutRegistry _shortcutRegistry;
 
     // Change notification batching: while _deferDepth > 0, changed registries are recorded as bits in
@@ -81,6 +86,12 @@ public class FryPluginContext : IFryPluginContext
     public event Action? ShortcutsChanged;
     /// <inheritdoc />
     public event Action? DialogsChanged;
+    /// <inheritdoc />
+    public event Action? AiContextProvidersChanged;
+    /// <inheritdoc />
+    public event Action? AiToolsChanged;
+    /// <inheritdoc />
+    public event Action? AiPromptsChanged;
 
     /// <inheritdoc />
     public virtual IShortcutRegistry Shortcuts => _shortcutRegistry;
@@ -184,6 +195,9 @@ public class FryPluginContext : IFryPluginContext
             RegistryKind.Inspectors => InspectorsChanged,
             RegistryKind.Shortcuts => ShortcutsChanged,
             RegistryKind.Dialogs => DialogsChanged,
+            RegistryKind.AiContextProviders => AiContextProvidersChanged,
+            RegistryKind.AiTools => AiToolsChanged,
+            RegistryKind.AiPrompts => AiPromptsChanged,
             _ => null
         };
 
@@ -467,6 +481,39 @@ public class FryPluginContext : IFryPluginContext
     /// <inheritdoc />
     public virtual IReadOnlyList<DialogDescriptor> GetRegisteredDialogs() => _dialogs.Snapshot;
 
+    /// <inheritdoc />
+    public virtual IDisposable RegisterAiContextProvider(IAiContextProvider provider) => Register(_aiContextProviders, provider);
+
+    /// <inheritdoc />
+    public virtual IReadOnlyList<IAiContextProvider> GetRegisteredAiContextProviders() => _aiContextProviders.Snapshot;
+
+    /// <inheritdoc />
+    public virtual IDisposable RegisterAiTool(AiToolDescriptor descriptor) => Register(_aiTools, descriptor);
+
+    /// <inheritdoc />
+    public virtual IDisposable RegisterAiTool(AIFunction function, bool requiresConfirmation = false, string? category = null)
+    {
+        ArgumentNullException.ThrowIfNull(function);
+        var descriptor = new AiToolDescriptor
+        {
+            Name = function.Name,
+            Description = function.Description ?? function.Name,
+            Category = category,
+            RequiresConfirmation = requiresConfirmation,
+            Function = function
+        };
+        return RegisterAiTool(descriptor);
+    }
+
+    /// <inheritdoc />
+    public virtual IReadOnlyList<AiToolDescriptor> GetRegisteredAiTools() => _aiTools.Snapshot;
+
+    /// <inheritdoc />
+    public virtual IDisposable RegisterAiPrompt(AiPromptDescriptor descriptor) => Register(_aiPrompts, descriptor);
+
+    /// <inheritdoc />
+    public virtual IReadOnlyList<AiPromptDescriptor> GetRegisteredAiPrompts() => _aiPrompts.Snapshot;
+
     // --- Registry storage ---
 
     private enum RegistryKind
@@ -480,7 +527,10 @@ public class FryPluginContext : IFryPluginContext
         Sidebars,
         Inspectors,
         Shortcuts,
-        Dialogs
+        Dialogs,
+        AiContextProviders,
+        AiTools,
+        AiPrompts
     }
 
     /// <summary>
@@ -560,6 +610,9 @@ public class FryPluginContext : IFryPluginContext
         public event Action? InspectorsChanged { add => _parent.InspectorsChanged += value; remove => _parent.InspectorsChanged -= value; }
         public event Action? ShortcutsChanged { add => _parent.ShortcutsChanged += value; remove => _parent.ShortcutsChanged -= value; }
         public event Action? DialogsChanged { add => _parent.DialogsChanged += value; remove => _parent.DialogsChanged -= value; }
+        public event Action? AiContextProvidersChanged { add => _parent.AiContextProvidersChanged += value; remove => _parent.AiContextProvidersChanged -= value; }
+        public event Action? AiToolsChanged { add => _parent.AiToolsChanged += value; remove => _parent.AiToolsChanged -= value; }
+        public event Action? AiPromptsChanged { add => _parent.AiPromptsChanged += value; remove => _parent.AiPromptsChanged -= value; }
 
         public ScopedPluginContext(FryPluginContext parent, PluginScope scope)
         {
@@ -663,6 +716,24 @@ public class FryPluginContext : IFryPluginContext
             _scope.RegisterDisposable(_parent.RegisterDialog(descriptor));
 
         public IReadOnlyList<DialogDescriptor> GetRegisteredDialogs() => _parent.GetRegisteredDialogs();
+
+        public IDisposable RegisterAiContextProvider(IAiContextProvider provider) =>
+            _scope.RegisterDisposable(_parent.RegisterAiContextProvider(provider));
+
+        public IReadOnlyList<IAiContextProvider> GetRegisteredAiContextProviders() => _parent.GetRegisteredAiContextProviders();
+
+        public IDisposable RegisterAiTool(AiToolDescriptor descriptor) =>
+            _scope.RegisterDisposable(_parent.RegisterAiTool(descriptor));
+
+        public IDisposable RegisterAiTool(AIFunction function, bool requiresConfirmation = false, string? category = null) =>
+            _scope.RegisterDisposable(_parent.RegisterAiTool(function, requiresConfirmation, category));
+
+        public IReadOnlyList<AiToolDescriptor> GetRegisteredAiTools() => _parent.GetRegisteredAiTools();
+
+        public IDisposable RegisterAiPrompt(AiPromptDescriptor descriptor) =>
+            _scope.RegisterDisposable(_parent.RegisterAiPrompt(descriptor));
+
+        public IReadOnlyList<AiPromptDescriptor> GetRegisteredAiPrompts() => _parent.GetRegisteredAiPrompts();
     }
 
     private sealed class DisposableAction : IDisposable

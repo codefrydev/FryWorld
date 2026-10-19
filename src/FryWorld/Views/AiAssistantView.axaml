@@ -1,0 +1,237 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:FryWorld.ViewModels"
+             xmlns:ai="using:FryWorld.Sdk.AI"
+             xmlns:avalonia="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="650"
+             x:Class="FryWorld.Views.AiAssistantView"
+             x:DataType="vm:AiAssistantViewModel">
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto"
+        Background="{DynamicResource M3SurfaceBrush}">
+
+    <!-- 1. Header Toolbar -->
+    <Border Grid.Row="0"
+            Padding="14,10"
+            Background="{DynamicResource M3SurfaceContainerLowestBrush}"
+            BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+            BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+        <!-- Title & Icon -->
+        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <avalonia:MaterialIcon Kind="AutoFixHigh" Width="20" Height="20" Foreground="{DynamicResource M3PrimaryBrush}" />
+          <TextBlock Text="Copilot" FontWeight="Bold" FontSize="15" Foreground="{DynamicResource M3OnSurfaceBrush}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <!-- Live Active Context Badge / Pill -->
+        <Border Grid.Column="1"
+                Margin="12,0"
+                Padding="10,4"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Center"
+                Background="{DynamicResource M3SurfaceContainerHighBrush}"
+                BorderBrush="{DynamicResource M3OutlineBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource M3ShapeCornerFull}">
+          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <avalonia:MaterialIcon Kind="ViewDashboardOutline" Width="13" Height="13" Foreground="{DynamicResource M3PrimaryBrush}" />
+            <TextBlock Text="{Binding ContextTitle}"
+                       FontSize="11"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource M3OnSurfaceBrush}"
+                       TextTrimming="CharacterEllipsis"
+                       MaxWidth="140"
+                       VerticalAlignment="Center" />
+            <TextBlock Text="•"
+                       FontSize="11"
+                       Foreground="{DynamicResource M3OnSurfaceVariantBrush}"
+                       IsVisible="{Binding ActiveDocumentText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <TextBlock Text="{Binding ActiveDocumentText}"
+                       FontSize="11"
+                       Foreground="{DynamicResource M3OnSurfaceVariantBrush}"
+                       TextTrimming="CharacterEllipsis"
+                       MaxWidth="100"
+                       VerticalAlignment="Center"
+                       IsVisible="{Binding ActiveDocumentText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          </StackPanel>
+        </Border>
+
+        <!-- Stop generation button (when busy) -->
+        <Button Grid.Column="2"
+                Command="{Binding StopCommand}"
+                IsVisible="{Binding IsBusy}"
+                Padding="8,4"
+                Margin="0,0,6,0"
+                CornerRadius="{StaticResource M3ShapeCornerFull}"
+                Background="{DynamicResource M3ErrorBrush}"
+                Foreground="{DynamicResource M3OnPrimaryBrush}"
+                ToolTip.Tip="Stop Generation">
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <avalonia:MaterialIcon Kind="Stop" Width="14" Height="14" />
+            <TextBlock Text="Stop" FontSize="11" FontWeight="SemiBold" />
+          </StackPanel>
+        </Button>
+
+        <!-- Clear Chat button -->
+        <Button Grid.Column="3"
+                Command="{Binding ClearChatCommand}"
+                Padding="6"
+                CornerRadius="{StaticResource M3ShapeCornerFull}"
+                Background="Transparent"
+                BorderThickness="0"
+                ToolTip.Tip="Clear conversation history">
+          <avalonia:MaterialIcon Kind="DeleteSweepOutline" Width="18" Height="18" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+        </Button>
+      </Grid>
+    </Border>
+
+    <!-- 2. Quick Prompts Suggestion Chips -->
+    <Border Grid.Row="1"
+            Padding="12,6"
+            Background="{DynamicResource M3SurfaceContainerLowestBrush}"
+            BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+            BorderThickness="0,0,0,1"
+            IsVisible="{Binding QuickPrompts.Count}">
+      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+        <ItemsControl ItemsSource="{Binding QuickPrompts}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="8" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="ai:AiPromptDescriptor">
+              <Button Command="{Binding $parent[UserControl].((vm:AiAssistantViewModel)DataContext).ApplyPromptCommand}"
+                      CommandParameter="{Binding}"
+                      Padding="10,4"
+                      CornerRadius="{StaticResource M3ShapeCornerFull}"
+                      Background="{DynamicResource M3SurfaceContainerBrush}"
+                      BorderBrush="{DynamicResource M3OutlineBrush}"
+                      BorderThickness="1"
+                      ToolTip.Tip="{Binding Description}">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <avalonia:MaterialIcon Kind="LightningBoltOutline" Width="12" Height="12" Foreground="{DynamicResource M3PrimaryBrush}" />
+                  <TextBlock Text="{Binding Title}" FontSize="11" Foreground="{DynamicResource M3OnSurfaceBrush}" />
+                </StackPanel>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Border>
+
+    <!-- 3. Message Stream -->
+    <ScrollViewer Grid.Row="2"
+                  Padding="14,10"
+                  HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+      <ItemsControl ItemsSource="{Binding Messages}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:AiChatMessageViewModel">
+            <Grid Margin="0,0,0,12">
+              <!-- USER MESSAGE (Right-aligned pill bubble) -->
+              <Border HorizontalAlignment="Right"
+                      MaxWidth="320"
+                      Padding="12,8"
+                      Background="{DynamicResource M3PrimaryContainerBrush}"
+                      CornerRadius="16,16,4,16"
+                      IsVisible="{Binding IsUser}">
+                <SelectableTextBlock Text="{Binding Text}"
+                                     FontSize="13"
+                                     TextWrapping="Wrap"
+                                     Foreground="{DynamicResource M3OnPrimaryContainerBrush}" />
+              </Border>
+
+              <!-- ASSISTANT MESSAGE (Left-aligned container bubble) -->
+              <Border HorizontalAlignment="Left"
+                      MaxWidth="350"
+                      Padding="12,10"
+                      Background="{DynamicResource M3SurfaceContainerHighBrush}"
+                      BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+                      BorderThickness="1"
+                      CornerRadius="16,16,16,4"
+                      IsVisible="{Binding IsAssistant}">
+                <StackPanel Spacing="8">
+                  <!-- Collapsible Reasoning / Thinking Block -->
+                  <Expander Header="Thinking Process"
+                            IsExpanded="{Binding IsReasoningExpanded}"
+                            IsVisible="{Binding HasReasoning}"
+                            Padding="8,4"
+                            CornerRadius="{StaticResource M3ShapeCornerSmall}"
+                            Background="{DynamicResource M3SurfaceContainerLowestBrush}">
+                    <SelectableTextBlock Text="{Binding ReasoningContent}"
+                                         FontSize="11"
+                                         FontStyle="Italic"
+                                         Foreground="{DynamicResource M3OnSurfaceVariantBrush}"
+                                         TextWrapping="Wrap" />
+                  </Expander>
+
+                  <!-- Main Response Content -->
+                  <SelectableTextBlock Text="{Binding Text}"
+                                       FontSize="13"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource M3OnSurfaceBrush}" />
+
+                  <!-- Streaming Indicator -->
+                  <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsStreaming}">
+                    <ProgressBar IsIndeterminate="True" Width="80" Height="2" />
+                    <TextBlock Text="Streaming..." FontSize="10" Foreground="{DynamicResource M3OnSurfaceVariantBrush}" />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <!-- 4. Bottom Input Bar -->
+    <Border Grid.Row="3"
+            Padding="12,10"
+            Background="{DynamicResource M3SurfaceContainerLowestBrush}"
+            BorderBrush="{DynamicResource M3OutlineVariantBrush}"
+            BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="*,Auto" Margin="0">
+        <!-- Input Text Box Capsule -->
+        <Border Grid.Column="0"
+                Padding="12,6"
+                Background="{DynamicResource M3SurfaceContainerBrush}"
+                BorderBrush="{DynamicResource M3OutlineBrush}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource M3ShapeCornerFull}">
+          <TextBox Text="{Binding InputText, Mode=TwoWay}"
+                   PlaceholderText="Ask Copilot, design circuits, or run tools..."
+                   FontSize="13"
+                   Background="Transparent"
+                   BorderThickness="0"
+                   Padding="0"
+                   VerticalAlignment="Center">
+            <TextBox.KeyBindings>
+              <KeyBinding Gesture="Enter" Command="{Binding SendCommand}" />
+            </TextBox.KeyBindings>
+          </TextBox>
+        </Border>
+
+        <!-- Send Button -->
+        <Button Grid.Column="1"
+                Command="{Binding SendCommand}"
+                IsEnabled="{Binding !IsBusy}"
+                Margin="8,0,0,0"
+                Width="38"
+                Height="38"
+                Padding="0"
+                CornerRadius="{StaticResource M3ShapeCornerFull}"
+                Background="{DynamicResource M3PrimaryBrush}"
+                Foreground="{DynamicResource M3OnPrimaryBrush}"
+                HorizontalContentAlignment="Center"
+                VerticalContentAlignment="Center"
+                ToolTip.Tip="Send prompt (Enter)">
+          <avalonia:MaterialIcon Kind="Send" Width="16" Height="16" />
+        </Button>
+      </Grid>
+    </Border>
+
+  </Grid>
+</UserControl>
