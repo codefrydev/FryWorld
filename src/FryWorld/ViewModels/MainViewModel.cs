@@ -602,6 +602,11 @@ public partial class MainViewModel : ViewModelBase
         }
 
         // 4. Check if plugin is installed in plugins directory
+        if (registeredPlugin != null || _host.GetRegisteredPlugins().Any(p => string.Equals(p.Id, pluginId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
         var pluginsDir = FryWorldPaths.PluginsDirectory;
         var pluginFolder = System.IO.Path.Combine(pluginsDir, pluginId);
         if (System.IO.Directory.Exists(pluginFolder))
