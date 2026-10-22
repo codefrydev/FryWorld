@@ -2,6 +2,14 @@
 
 All notable changes to FryWorld.Sdk. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows [Semantic Versioning](https://semver.org/) under the [compatibility policy](../../docs/sdk/compatibility.md): every 0.x release is additive, so plugins built against 0.0.2 keep compiling and loading.
 
+## [0.5.0] - 2026-10-22
+
+### Added
+
+- **First-Class Model Context Protocol (MCP) Server Integration:** Native JSON-RPC 2.0 and Server-Sent Events (SSE) protocol dispatcher hosting dynamic plugin AI tools (`tools/list`, `tools/call`), workspace context providers (`resources/list`, `resources/read`), and turnkey engineering prompt templates (`prompts/list`, `prompts/get`).
+- **Dynamic Dependency Injection for Plugins:** Seamless service provider resolution bridging host container services (`IServiceProvider`) and runtime DI scopes directly into plugin entry points and tool invocation delegates.
+- **Duplicate Plugin Loading Guard:** Enforced runtime registry verification preventing duplicate plugin package installation and redundant assembly loader registrations.
+
 ## [0.4.0] - 2026-10-19
 
 ### Added
