@@ -106,7 +106,14 @@ public class McpHttpSseTransport : IDisposable
 
         if (path.StartsWith("/sse", StringComparison.OrdinalIgnoreCase))
         {
-            await HandleSseConnectionAsync(context, ct);
+            if (string.Equals(req.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase))
+            {
+                await HandleJsonRpcPostAsync(context, ct);
+            }
+            else
+            {
+                await HandleSseConnectionAsync(context, ct);
+            }
         }
         else if (path.StartsWith("/message", StringComparison.OrdinalIgnoreCase) || path.StartsWith("/mcp", StringComparison.OrdinalIgnoreCase))
         {

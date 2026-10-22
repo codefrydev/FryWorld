@@ -15,7 +15,7 @@ namespace FryWorld.Sdk.Loading;
 public sealed class CollectiblePluginLoadContext : AssemblyLoadContext
 {
     private static readonly HashSet<string> HostContractAssemblies =
-        new(StringComparer.OrdinalIgnoreCase) { "FryWorld.Sdk", "FryWorld" };
+        new(StringComparer.OrdinalIgnoreCase) { "FryWorld.Sdk", "FryWorld", "Microsoft.Extensions.AI", "Microsoft.Extensions.AI.Abstractions" };
 
     /// <summary>
     /// Whether the host supplies <paramref name="assemblyName"/> to plugins (the SDK contract or a shared
